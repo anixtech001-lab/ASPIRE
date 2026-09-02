@@ -40,8 +40,8 @@ export default function Sidebar() {
           <Sprout className="h-5 w-5 text-emerald-400" />
         </div>
         <div>
-          <div className="text-sm font-semibold leading-tight">Grameen</div>
-          <div className="text-xs text-white/50 leading-tight">Business Advisor</div>
+          <div className="text-sm font-semibold leading-tight">ASPIRE</div>
+          <div className="text-xs text-white/50 leading-tight">Rural Business Advisor</div>
         </div>
       </div>
 
@@ -52,11 +52,10 @@ export default function Sidebar() {
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
-                active
+              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${active
                   ? "bg-emerald-600 text-white font-medium"
                   : "text-white/70 hover:bg-white/5 hover:text-white"
-              }`}
+                }`}
             >
               <Icon className="h-4 w-4 shrink-0" />
               {label}

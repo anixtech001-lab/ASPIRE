@@ -4,8 +4,8 @@ import Sidebar from "@/components/Sidebar";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Grameen Business Advisor",
-  description: "AI-driven hyper-local business advisory for rural micro-entrepreneurs",
+  title: "ASPIRE — AI-driven Support for Project Investment and Rural Entrepreneurship",
+  description: "AI-driven hyper-local business advisory and financial structuring for rural micro-entrepreneurs",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useBusiness } from "@/lib/BusinessContext";
+import { saveReport } from "@/lib/reportsStorage";
 import { Loader2 } from "lucide-react";
 
 const STEPS = ["Basic Details", "Business Info", "Financial Details", "Review"];
@@ -71,6 +72,12 @@ export default function AdvisorPage() {
 
       if (data.warning) setError(data.warning);
 
+      // Save to "My Reports" history — only if the AI report actually
+      // generated successfully (a partial/failed report isn't worth keeping).
+      if (data.feasibilityReport) {
+        saveReport(details, data.feasibilityReport, data.financialPlan);
+      }
+
       router.push("/report");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
@@ -92,9 +99,8 @@ export default function AdvisorPage() {
           <div key={label} className="flex items-center flex-1 last:flex-none">
             <div className="flex flex-col items-center">
               <div
-                className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  i <= step ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-400"
-                }`}
+                className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium ${i <= step ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-400"
+                  }`}
               >
                 {i + 1}
               </div>
