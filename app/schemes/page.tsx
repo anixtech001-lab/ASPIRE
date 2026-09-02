@@ -1,35 +1,43 @@
 const SCHEMES = [
   {
     name: "PMEGP Scheme",
-    desc: "Credit linked subsidy scheme for setting up micro enterprises.",
-    subsidyLabel: "Subsidy",
-    subsidyValue: "15% - 35%",
-    benefitLabel: "Benefit",
-    benefitValue: "Up to ₹25 Lakhs",
+    desc: "Credit-linked subsidy for setting up new micro-enterprises. Implemented by KVIC, Ministry of MSME.",
+    rows: [
+      { label: "Subsidy", value: "15% – 35% of project cost" },
+      { label: "Max Project Cost", value: "₹50L (Mfg) / ₹20L (Service)" },
+    ],
+    note: "General category: 15% urban / 25% rural. SC/ST/Women/NE/special category: 25% urban / 35% rural.",
+    applyUrl: "https://www.kviconline.gov.in/pmegpeportal/pmegphome/index.jsp",
   },
   {
-    name: "Dairy Entrepreneurship Development Scheme",
-    desc: "Support for setting up dairy based enterprises.",
-    subsidyLabel: "Subsidy",
-    subsidyValue: "25%",
-    benefitLabel: "Benefit",
-    benefitValue: "Up to ₹10 Lakhs",
+    name: "Mudra Loan (PMMY)",
+    desc: "Collateral-free loans for non-farm micro/small enterprises, in four tiers by business stage.",
+    rows: [
+      { label: "Loan Tiers", value: "Shishu ≤₹50K · Kishor ≤₹5L" },
+      { label: "", value: "Tarun ≤₹10L · Tarun Plus ≤₹20L" },
+    ],
+    note: "Tarun Plus (₹10L–₹20L) requires a clean repayment record on a prior Tarun loan.",
+    applyUrl: "https://www.udyamimitra.in/",
   },
   {
-    name: "Stand Up India Scheme",
-    desc: "Bank loans between ₹10 lakh to ₹1 crore for SC/ST & Women.",
-    subsidyLabel: "Loan Amount",
-    subsidyValue: "₹10L - ₹1Cr",
-    benefitLabel: "Purpose",
-    benefitValue: "Greenfield Enterprise",
+    name: "Stand-Up India Scheme",
+    desc: "Bank loans for SC/ST and women entrepreneurs starting a new (greenfield) enterprise.",
+    rows: [
+      { label: "Loan Amount", value: "₹10L – ₹1 Crore" },
+      { label: "Tenure", value: "7 years + 18mo moratorium" },
+    ],
+    note: "Interest rate = bank's MCLR + up to 3% + tenor premium (typically ~9-12% p.a.). Rates vary by bank — confirm before applying.",
+    applyUrl: "https://www.standupmitra.in/",
   },
   {
-    name: "Mudra Loan",
-    desc: "Collateral free loans for micro enterprises.",
-    subsidyLabel: "Loan Amount",
-    subsidyValue: "Up to ₹10 Lakhs",
-    benefitLabel: "Purpose",
-    benefitValue: "Business Development",
+    name: "Kisan Credit Card (KCC)",
+    desc: "Working-capital credit for farming and allied activities, including dairy, poultry, and fisheries.",
+    rows: [
+      { label: "Interest Rate", value: "~4% effective (with subvention)" },
+      { label: "Limit", value: "Up to ₹3L at subsidized rate" },
+    ],
+    note: "Subsidized rate applies only for prompt repayment. Available at nationalized banks, RRBs, and cooperative banks.",
+    applyUrl: "https://www.myscheme.gov.in/schemes/kcc",
   },
 ];
 
@@ -45,24 +53,31 @@ export default function SchemesPage() {
             <h3 className="font-semibold text-sm mb-2 leading-snug">{s.name}</h3>
             <p className="text-xs text-slate-500 mb-4 flex-1">{s.desc}</p>
 
-            <div className="mb-1.5">
-              <div className="text-xs text-slate-400">{s.subsidyLabel}</div>
-              <div className="text-sm font-medium">{s.subsidyValue}</div>
-            </div>
-            <div className="mb-4">
-              <div className="text-xs text-slate-400">{s.benefitLabel}</div>
-              <div className="text-sm font-medium">{s.benefitValue}</div>
-            </div>
+            {s.rows.map((r, i) => (
+              <div key={i} className="mb-1.5">
+                {r.label && <div className="text-xs text-slate-400">{r.label}</div>}
+                <div className="text-sm font-medium">{r.value}</div>
+              </div>
+            ))}
 
-            <button className="text-xs font-medium text-emerald-600 border border-emerald-200 rounded-lg py-2 hover:bg-emerald-50 transition-colors">
+            <p className="text-[11px] text-slate-400 mt-2 mb-4 leading-snug">{s.note}</p>
+
+            <a
+              href={s.applyUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-medium text-emerald-600 border border-emerald-200 rounded-lg py-2 text-center hover:bg-emerald-50 transition-colors"
+            >
               Apply Now →
-            </button>
+            </a>
           </div>
         ))}
       </div>
 
       <p className="text-xs text-slate-400 mt-6">
-        Note: Scheme eligibility depends on government norms. Please verify details before applying.
+        Note: Scheme terms change periodically and vary by bank/state. This page reflects
+        publicly available information as of 2026 — always verify current terms on the
+        official portal before applying.
       </p>
     </div>
   );
