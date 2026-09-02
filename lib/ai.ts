@@ -2,6 +2,13 @@ import Groq from "groq-sdk";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
+// llama-3.3-70b-versatile was deprecated by Groq on 17 June 2026 and fully
+// decommissioned on 16 August 2026 — using it now returns an error on every
+// call. Groq's recommended replacement is openai/gpt-oss-120b. Configurable
+// via env var so a future Groq deprecation doesn't require a code change —
+// just update GROQ_MODEL in Vercel's environment variables.
+const MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
+
 export interface AdvisorInput {
   location: string;
   state: string;
@@ -81,7 +88,7 @@ export async function generateFeasibilityReport(
   const userPrompt = buildUserPrompt(input);
 
   const completion = await groq.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
+    model: MODEL,
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: userPrompt },
@@ -98,7 +105,7 @@ export async function generateFeasibilityReport(
     // Retry once with a stricter instruction if the model returns malformed JSON.
     // Always validate before rendering — never trust raw LLM output.
     const retry = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: MODEL,
       messages: [
         { role: "system", content: SYSTEM_PROMPT + "\n\nReturn ONLY valid JSON. No exceptions." },
         { role: "user", content: userPrompt },
