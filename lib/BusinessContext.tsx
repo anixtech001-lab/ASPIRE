@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode } from "react";
 import { FeasibilityReport } from "./ai";
-import { SchemeResult } from "./financialEngine";
+import { FullFinancialPlan } from "./financialEngine";
 
 export interface BusinessDetails {
   location: string;
@@ -32,8 +32,8 @@ interface BusinessContextValue {
   feasibilityReport: FeasibilityReport | null;
   setFeasibilityReport: (r: FeasibilityReport | null) => void;
 
-  financialPlan: SchemeResult | null;
-  setFinancialPlan: (r: SchemeResult | null) => void;
+  financialPlan: FullFinancialPlan | null;
+  setFinancialPlan: (r: FullFinancialPlan | null) => void;
 
   reportLoading: boolean;
   setReportLoading: (b: boolean) => void;
@@ -45,7 +45,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   const [businessDetails, setBusinessDetails] = useState<BusinessDetails | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [feasibilityReport, setFeasibilityReport] = useState<FeasibilityReport | null>(null);
-  const [financialPlan, setFinancialPlan] = useState<SchemeResult | null>(null);
+  const [financialPlan, setFinancialPlan] = useState<FullFinancialPlan | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
 
   const addTransaction = (t: Omit<Transaction, "id">) => {

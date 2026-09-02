@@ -24,7 +24,6 @@ export default function DashboardPage() {
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto">
-      {/* Top bar */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-semibold">Dashboard</h1>
@@ -50,7 +49,6 @@ export default function DashboardPage() {
         <EmptyState />
       ) : (
         <>
-          {/* Stat cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <StatCard
               icon={<Gauge className="h-5 w-5 text-emerald-600" />}
@@ -60,32 +58,39 @@ export default function DashboardPage() {
                 feasibilityReport!.feasibilityScore >= 70
                   ? "Good Potential"
                   : feasibilityReport!.feasibilityScore >= 40
-                  ? "Moderate Potential"
-                  : "Needs Review"
+                    ? "Moderate Potential"
+                    : "Needs Review"
               }
               subColor="text-emerald-600"
             />
             <StatCard
               icon={<Wallet className="h-5 w-5 text-emerald-600" />}
-              label="Estimated Investment"
-              value={formatINR(financialPlan!.projectCost)}
+              label="Project Cost"
+              value={formatINR(financialPlan!.details.projectCost)}
               sub="Total Required"
             />
             <StatCard
               icon={<TrendingUp className="h-5 w-5 text-emerald-600" />}
-              label="Expected Monthly Profit"
-              value={formatINR(financialPlan!.emi * 1.4)}
-              sub="Average Estimate"
+              label="Loan Eligibility"
+              value={formatINR(financialPlan!.details.loanAmount)}
+              sub={financialPlan!.details.scheme?.name ?? "Review Required"}
             />
             <StatCard
               icon={<CalendarClock className="h-5 w-5 text-emerald-600" />}
-              label="Break-even Period"
-              value="8 - 10"
-              sub="Months"
+              label="Quarterly EMI"
+              value={
+                financialPlan!.emiSchedule
+                  ? formatINR(financialPlan!.emiSchedule.quarterlyEMI)
+                  : "—"
+              }
+              sub={
+                financialPlan!.details.scheme
+                  ? `${financialPlan!.details.scheme.moratoriumMonths}mo moratorium`
+                  : "N/A"
+              }
             />
           </div>
 
-          {/* Feasibility overview + recommendation + quick actions */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
             <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6">
               <h2 className="font-semibold mb-4">Business Feasibility Overview</h2>
@@ -101,9 +106,7 @@ export default function DashboardPage() {
                       Recommended
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 mb-3">
-                    {feasibilityReport!.executiveSummary}
-                  </p>
+                  <p className="text-xs text-slate-500 mb-3">{feasibilityReport!.executiveSummary}</p>
                   <Link
                     href="/report"
                     className="text-xs font-medium text-emerald-600 flex items-center gap-1 hover:underline"
@@ -114,7 +117,7 @@ export default function DashboardPage() {
                 <div className="rounded-xl bg-slate-50 p-4">
                   <div className="text-xs font-medium text-slate-500 mb-2">Key Strengths</div>
                   <ul className="space-y-1.5">
-                    {feasibilityReport!.keyStrengths.slice(0, 4).map((s, i) => (
+                    {feasibilityReport!.swot.strengths.slice(0, 4).map((s, i) => (
                       <li key={i} className="text-xs text-slate-600 flex items-start gap-1.5">
                         <span className="text-emerald-500 mt-0.5">✓</span> {s}
                       </li>

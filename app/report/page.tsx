@@ -6,7 +6,13 @@ import { useBusiness } from "@/lib/BusinessContext";
 import { formatINR } from "@/lib/financialEngine";
 import { Download, ArrowLeft } from "lucide-react";
 
-const TABS = ["Overview", "Market Analysis", "Financial Plan", "Schemes", "Risks & Challenges", "Recommendations"];
+const TABS = [
+  "Overview",
+  "Market Reach & Opportunity",
+  "SWOT & Risks",
+  "Pricing & Competitors",
+  "Financial Plan",
+];
 
 export default function ReportPage() {
   const { businessDetails, feasibilityReport, financialPlan } = useBusiness();
@@ -38,15 +44,13 @@ export default function ReportPage() {
         Generated for {businessDetails.location}, {businessDetails.state} · {businessDetails.businessCategory}
       </p>
 
-      {/* Tabs */}
       <div className="flex gap-6 border-b border-slate-200 mb-6 overflow-x-auto">
         {TABS.map((t, i) => (
           <button
             key={t}
             onClick={() => setTab(i)}
-            className={`pb-3 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors ${
-              tab === i ? "border-emerald-600 text-emerald-700 font-medium" : "border-transparent text-slate-500"
-            }`}
+            className={`pb-3 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors ${tab === i ? "border-emerald-600 text-emerald-700 font-medium" : "border-transparent text-slate-500"
+              }`}
           >
             {t}
           </button>
@@ -56,22 +60,22 @@ export default function ReportPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           {tab === 0 && <OverviewTab report={feasibilityReport} />}
-          {tab === 1 && <MarketTab report={feasibilityReport} />}
-          {tab === 2 && <FinancialTab plan={financialPlan} />}
-          {tab === 3 && <SchemesTab />}
-          {tab === 4 && <RisksTab report={feasibilityReport} />}
-          {tab === 5 && <RecommendationsTab report={feasibilityReport} />}
+          {tab === 1 && <MarketOpportunityTab report={feasibilityReport} />}
+          {tab === 2 && <SwotRisksTab report={feasibilityReport} />}
+          {tab === 3 && <PricingCompetitorsTab report={feasibilityReport} />}
+          {tab === 4 && <FinancialTab plan={financialPlan} />}
         </div>
 
-        {/* At a Glance sidebar */}
         <div className="bg-white rounded-2xl border border-slate-200 p-5 h-fit">
           <h3 className="font-semibold text-sm mb-4">At a Glance</h3>
           <GlanceRow label="Business Type" value={businessDetails.businessCategory} />
           <GlanceRow label="Location" value={`${businessDetails.location}, ${businessDetails.state}`} />
-          <GlanceRow label="Initial Investment" value={formatINR(financialPlan.marginRequired)} />
-          <GlanceRow label="Monthly Operating Cost" value={formatINR(financialPlan.emi * 0.6)} />
-          <GlanceRow label="Expected Monthly Profit" value={formatINR(financialPlan.emi * 1.4)} />
-          <GlanceRow label="Break-even Period" value="8 - 10 Months" />
+          <GlanceRow label="Project Cost" value={formatINR(financialPlan.details.projectCost)} />
+          <GlanceRow label="Loan Amount" value={formatINR(financialPlan.details.loanAmount)} />
+          <GlanceRow
+            label="Scheme"
+            value={financialPlan.details.scheme?.name ?? "Exceeds standard limits"}
+          />
           <GlanceRow label="Risk Level" value={feasibilityReport.riskLevel} last />
         </div>
       </div>
@@ -79,56 +83,41 @@ export default function ReportPage() {
   );
 }
 
-function OverviewTab({ report }: { report: NonNullable<ReturnType<typeof useBusiness>["feasibilityReport"]> }) {
+type Report = NonNullable<ReturnType<typeof useBusiness>["feasibilityReport"]>;
+type Plan = NonNullable<ReturnType<typeof useBusiness>["financialPlan"]>;
+
+function OverviewTab({ report }: { report: Report }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6">
       <h3 className="font-semibold mb-3">Executive Summary</h3>
       <p className="text-sm text-slate-600 leading-relaxed mb-6">{report.executiveSummary}</p>
-
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <MiniStat label="Feasibility Score" value={`${report.feasibilityScore}/100`} />
         <MiniStat label="Market Demand" value={report.marketDemand} />
-        <MiniStat label="Competitor Density" value={report.competitorDensity.level} />
         <MiniStat label="Risk Level" value={report.riskLevel} />
       </div>
-
-      <h4 className="font-medium text-sm mb-2">Key Strengths</h4>
-      <ul className="space-y-1.5">
-        {report.keyStrengths.map((s, i) => (
-          <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
-            <span className="text-emerald-500 mt-0.5">✓</span> {s}
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }
 
-function MarketTab({ report }: { report: NonNullable<ReturnType<typeof useBusiness>["feasibilityReport"]> }) {
+function MarketOpportunityTab({ report }: { report: Report }) {
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-2xl border border-slate-200 p-6">
         <h3 className="font-semibold mb-3">Market Reach</h3>
-        <p className="text-sm text-slate-600 mb-3">
-          Estimated <strong>{report.marketReach.estimatedPopulation}</strong> consumer base within{" "}
-          <strong>{report.marketReach.radiusKm} km</strong> radius.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {report.marketReach.distributionChannels.map((c, i) => (
-            <span key={i} className="text-xs bg-slate-100 rounded-full px-3 py-1">
-              {c}
-            </span>
-          ))}
-        </div>
+        <p className="text-sm text-slate-600 leading-relaxed">{report.marketReach}</p>
       </div>
       <div className="bg-white rounded-2xl border border-slate-200 p-6">
         <h3 className="font-semibold mb-3">Opportunity Analysis</h3>
-        <ul className="space-y-1.5">
-          {report.opportunityAnalysis.map((o, i) => (
-            <li key={i} className="text-sm text-slate-600">• {o}</li>
-          ))}
-        </ul>
+        <p className="text-sm text-slate-600 leading-relaxed">{report.opportunityAnalysis}</p>
       </div>
+    </div>
+  );
+}
+
+function SwotRisksTab({ report }: { report: Report }) {
+  return (
+    <div className="space-y-4">
       <div className="bg-white rounded-2xl border border-slate-200 p-6">
         <h3 className="font-semibold mb-3">SWOT Analysis</h3>
         <div className="grid grid-cols-2 gap-4">
@@ -139,78 +128,52 @@ function MarketTab({ report }: { report: NonNullable<ReturnType<typeof useBusine
         </div>
       </div>
       <div className="bg-white rounded-2xl border border-slate-200 p-6">
-        <h3 className="font-semibold mb-2">Pricing Strategy</h3>
-        <p className="text-sm font-medium text-emerald-700 mb-1">
-          {report.pricingStrategy.suggestedPriceRange}
-        </p>
-        <p className="text-sm text-slate-600">{report.pricingStrategy.reasoning}</p>
+        <h3 className="font-semibold mb-3">Threats Identification</h3>
+        <p className="text-sm text-slate-600 leading-relaxed">{report.threatsIdentification}</p>
       </div>
     </div>
   );
 }
 
-function FinancialTab({ plan }: { plan: NonNullable<ReturnType<typeof useBusiness>["financialPlan"]> }) {
+function PricingCompetitorsTab({ report }: { report: Report }) {
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+        <h3 className="font-semibold mb-3">Competitor Mapping</h3>
+        <p className="text-sm text-slate-600 leading-relaxed">{report.competitorMapping}</p>
+      </div>
+      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+        <h3 className="font-semibold mb-3">Product Market Value & Pricing</h3>
+        <p className="text-sm text-slate-600 leading-relaxed">{report.productMarketValue}</p>
+      </div>
+    </div>
+  );
+}
+
+function FinancialTab({ plan }: { plan: Plan }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6">
       <h3 className="font-semibold mb-4">Financial Structuring Plan</h3>
-      {plan.outOfRange ? (
+      {plan.details.exceedsLimits ? (
         <p className="text-sm text-amber-600">
-          Project cost of {formatINR(plan.projectCost)} exceeds the ₹50 lakh Term Loan Scheme
-          ceiling — this application needs manual review by a Channel Partner.
+          Project cost of {formatINR(plan.details.projectCost)} exceeds the ₹50 lakh Term Loan
+          Scheme ceiling — this needs manual review by a Channel Partner.
         </p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          <MiniStat label="Project Cost" value={formatINR(plan.projectCost)} />
-          <MiniStat label="Loan Eligibility" value={formatINR(plan.maxLoan)} />
-          <MiniStat label="Scheme" value={plan.schemeName} />
-          <MiniStat label="Interest Rate" value={`${plan.interestRate}% p.a.`} />
-          <MiniStat label="Tenure" value={`${plan.tenureYears} years`} />
-          <MiniStat label="Moratorium" value={`${plan.moratoriumMonths} months`} />
-          <MiniStat label="Monthly EMI" value={formatINR(plan.emi)} />
-        </div>
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-5">
+            <MiniStat label="Project Cost" value={formatINR(plan.details.projectCost)} />
+            <MiniStat label="Loan Amount" value={formatINR(plan.details.loanAmount)} />
+            <MiniStat label="Scheme" value={plan.details.scheme!.name} />
+            <MiniStat label="Interest Rate" value={`${plan.details.scheme!.interestRate}% p.a.`} />
+            <MiniStat label="Tenure" value={`${plan.details.scheme!.tenureYears} years`} />
+            <MiniStat label="Moratorium" value={`${plan.details.scheme!.moratoriumMonths} months`} />
+          </div>
+          {plan.emiSchedule && (
+            <MiniStat label="Quarterly EMI" value={formatINR(plan.emiSchedule.quarterlyEMI)} />
+          )}
+        </>
       )}
-    </div>
-  );
-}
-
-function SchemesTab() {
-  return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6">
-      <p className="text-sm text-slate-500 mb-3">
-        See the full list of matched government schemes on the{" "}
-        <Link href="/schemes" className="text-emerald-600 font-medium hover:underline">
-          Schemes & Support
-        </Link>{" "}
-        page.
-      </p>
-    </div>
-  );
-}
-
-function RisksTab({ report }: { report: NonNullable<ReturnType<typeof useBusiness>["feasibilityReport"]> }) {
-  return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6">
-      <h3 className="font-semibold mb-3">Threats & Challenges</h3>
-      <ul className="space-y-1.5">
-        {report.swot.threats.map((t, i) => (
-          <li key={i} className="text-sm text-slate-600">• {t}</li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function RecommendationsTab({ report }: { report: NonNullable<ReturnType<typeof useBusiness>["feasibilityReport"]> }) {
-  return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6">
-      <h3 className="font-semibold mb-3">Recommendations</h3>
-      <ul className="space-y-2">
-        {report.recommendations.map((r, i) => (
-          <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
-            <span className="text-emerald-500 mt-0.5">→</span> {r}
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

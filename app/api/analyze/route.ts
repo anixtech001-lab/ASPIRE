@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateFeasibilityReport, AdvisorInput } from "@/lib/ai";
-import { calculateFinancialPlan } from "@/lib/financialEngine";
+import { calculateFullFinancialPlan } from "@/lib/financialEngine";
 
 // POST /api/analyze
 // Takes business details + margin capital, returns:
-//  1. AI-generated feasibility report (Groq)
+//  1. AI-generated feasibility report (Groq) — 6 spec-required sections + dashboard extras
 //  2. Deterministic financial structuring plan (zero-AI, always exact)
 export async function POST(req: NextRequest) {
   try {
@@ -17,8 +17,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Run both independently — financial plan never depends on AI succeeding
-    const financialPlan = calculateFinancialPlan(body.marginCapital);
+    // Financial plan never depends on AI succeeding — always computed first.
+    const financialPlan = calculateFullFinancialPlan(body.marginCapital);
 
     let feasibilityReport;
     try {
