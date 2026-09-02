@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useBusiness } from "@/lib/BusinessContext";
 import {
   calculateFullFinancialPlan,
@@ -16,27 +16,41 @@ interface LineItem {
 }
 
 const DEFAULT_INVESTMENT: LineItem[] = [
-  { id: "1", label: "Land / Shop (if any)", amount: 30000 },
-  { id: "2", label: "Equipment", amount: 45000 },
-  { id: "3", label: "Initial Working Capital", amount: 30000 },
+  { id: "1", label: "Land / Shop (if any)", amount: 0 },
+  { id: "2", label: "Equipment", amount: 0 },
+  { id: "3", label: "Initial Working Capital", amount: 0 },
 ];
 
 const DEFAULT_EXPENSES: LineItem[] = [
-  { id: "1", label: "Raw Materials", amount: 55000 },
-  { id: "2", label: "Transportation", amount: 8000 },
-  { id: "3", label: "Labor", amount: 5000 },
+  { id: "1", label: "Raw Materials", amount: 0 },
+  { id: "2", label: "Transportation", amount: 0 },
+  { id: "3", label: "Labor", amount: 0 },
 ];
 
-const DEFAULT_REVENUE: LineItem[] = [{ id: "1", label: "Sales Revenue", amount: 90000 }];
+const DEFAULT_REVENUE: LineItem[] = [{ id: "1", label: "Sales Revenue", amount: 0 }];
 
 export default function FinancialPlannerPage() {
-  const { businessDetails } = useBusiness();
+  const { businessDetails, hydrated } = useBusiness();
 
-  // Auto-fill margin capital from the Business Advisor flow if the user
-  // already went through it — never make them re-enter it.
-  const [marginCapitalInput, setMarginCapitalInput] = useState(
-    businessDetails?.marginCapital ? String(businessDetails.marginCapital) : ""
-  );
+  const [marginCapitalInput, setMarginCapitalInput] = useState("");
+  const userEditedRef = useRef(false);
+
+  // Auto-fill margin capital from the Business Advisor flow once the saved
+  // session has loaded — context rehydrates from localStorage asynchronously
+  // on mount, so a plain useState initializer would often run before that
+  // data is ready and show blank. This effect fills in the value the moment
+  // it becomes available, but backs off if the user has already typed
+  // something themselves.
+  useEffect(() => {
+    if (hydrated && businessDetails?.marginCapital && !userEditedRef.current) {
+      setMarginCapitalInput(String(businessDetails.marginCapital));
+    }
+  }, [hydrated, businessDetails]);
+
+  const handleMarginCapitalChange = (value: string) => {
+    userEditedRef.current = true;
+    setMarginCapitalInput(value);
+  };
 
   const marginCapital = Number(marginCapitalInput) || 0;
 
@@ -79,7 +93,7 @@ export default function FinancialPlannerPage() {
             className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
             placeholder="e.g. 100000"
             value={marginCapitalInput}
-            onChange={(e) => setMarginCapitalInput(e.target.value)}
+            onChange={(e) => handleMarginCapitalChange(e.target.value)}
           />
           {businessDetails?.marginCapital && (
             <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1">

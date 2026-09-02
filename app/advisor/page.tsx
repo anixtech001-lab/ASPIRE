@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useBusiness } from "@/lib/BusinessContext";
 import { saveReport } from "@/lib/reportsStorage";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 const STEPS = ["Basic Details", "Business Info", "Financial Details", "Review"];
 
@@ -13,8 +13,12 @@ const BUSINESS_CATEGORIES = [
 ];
 
 const STATES = [
-  "Bihar", "Uttar Pradesh", "Madhya Pradesh", "Rajasthan", "Maharashtra",
-  "Tamil Nadu", "West Bengal", "Gujarat", "Karnataka", "Other",
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa",
+  "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala",
+  "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland",
+  "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura",
+  "Uttar Pradesh", "Uttarakhand", "West Bengal", "Delhi", "Jammu and Kashmir",
+  "Ladakh", "Chandigarh", "Puducherry", "Other",
 ];
 
 export default function AdvisorPage() {
@@ -28,11 +32,52 @@ export default function AdvisorPage() {
   const [form, setForm] = useState({
     location: "",
     state: "Bihar",
+    pincode: "",
     businessCategory: "Dairy",
     marginCapital: "",
     experience: "Some Experience",
     motivation: "",
   });
+
+  // PIN-code cross-check status: verifies the selected state actually
+  // contains that PIN code, using India Post's free public API (no key
+  // needed). This catches the "typed a city, picked the wrong state"
+  // mistake without needing any paid geocoding service.
+  const [pincodeCheck, setPincodeCheck] = useState<
+    | { status: "idle" }
+    | { status: "checking" }
+    | { status: "match"; district: string }
+    | { status: "mismatch"; actualState: string; district: string }
+    | { status: "invalid" }
+  >({ status: "idle" });
+
+  const checkPincode = async (pincode: string, selectedState: string) => {
+    if (!/^\d{6}$/.test(pincode)) {
+      setPincodeCheck({ status: "idle" });
+      return;
+    }
+    setPincodeCheck({ status: "checking" });
+    try {
+      const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+      const data = await res.json();
+      const postOffice = data?.[0]?.PostOffice?.[0];
+      if (data?.[0]?.Status !== "Success" || !postOffice) {
+        setPincodeCheck({ status: "invalid" });
+        return;
+      }
+      const actualState = postOffice.State as string;
+      const district = postOffice.District as string;
+      if (actualState.toLowerCase() === selectedState.toLowerCase()) {
+        setPincodeCheck({ status: "match", district });
+      } else {
+        setPincodeCheck({ status: "mismatch", actualState, district });
+      }
+    } catch {
+      // Network/API failure — fail silently, never block the form because a
+      // free third-party lookup was unavailable.
+      setPincodeCheck({ status: "idle" });
+    }
+  };
 
   const update = (field: string, value: string) => setForm((f) => ({ ...f, [field]: value }));
 
@@ -127,11 +172,52 @@ export default function AdvisorPage() {
               />
             </Field>
             <Field label="State">
-              <select className="input" value={form.state} onChange={(e) => update("state", e.target.value)}>
+              <select
+                className="input"
+                value={form.state}
+                onChange={(e) => {
+                  update("state", e.target.value);
+                  if (form.pincode) checkPincode(form.pincode, e.target.value);
+                }}
+              >
                 {STATES.map((s) => (
                   <option key={s}>{s}</option>
                 ))}
               </select>
+            </Field>
+            <Field label="PIN Code (optional — helps us verify your state)">
+              <input
+                className="input"
+                placeholder="e.g. 843301"
+                maxLength={6}
+                value={form.pincode}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, "").slice(0, 6);
+                  update("pincode", digits);
+                  if (digits.length === 6) checkPincode(digits, form.state);
+                  else setPincodeCheck({ status: "idle" });
+                }}
+              />
+              {pincodeCheck.status === "checking" && (
+                <p className="text-xs text-slate-400 mt-1.5">Checking PIN code…</p>
+              )}
+              {pincodeCheck.status === "match" && (
+                <p className="text-xs text-emerald-600 mt-1.5 flex items-center gap-1">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Matches {pincodeCheck.district}, {form.state}
+                </p>
+              )}
+              {pincodeCheck.status === "mismatch" && (
+                <p className="text-xs text-amber-600 mt-1.5 flex items-start gap-1">
+                  <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                  This PIN code belongs to {pincodeCheck.district}, <strong>{pincodeCheck.actualState}</strong> —
+                  not {form.state}. Please check your state selection.
+                </p>
+              )}
+              {pincodeCheck.status === "invalid" && (
+                <p className="text-xs text-red-500 mt-1.5">
+                  Couldn&apos;t find this PIN code. Please double-check it.
+                </p>
+              )}
             </Field>
           </div>
         )}

@@ -82,6 +82,39 @@ Motivation: ${input.motivation}
 Be specific to this location and business type. Generate the JSON report now.`;
 }
 
+function normalizeReport(raw: any): FeasibilityReport {
+  // Groq's json_object mode (used here) guarantees valid JSON syntax, but
+  // NOT that every key we asked for is actually present — the model can
+  // still omit a field. Without this normalization, a missing `swot` or
+  // `marketReach` would crash the report page with a client-side exception
+  // the moment the UI tries to read it. Every field gets a safe fallback.
+  return {
+    marketReach: typeof raw?.marketReach === "string" ? raw.marketReach : "Not available for this analysis.",
+    opportunityAnalysis:
+      typeof raw?.opportunityAnalysis === "string" ? raw.opportunityAnalysis : "Not available for this analysis.",
+    swot: {
+      strengths: Array.isArray(raw?.swot?.strengths) ? raw.swot.strengths : [],
+      weaknesses: Array.isArray(raw?.swot?.weaknesses) ? raw.swot.weaknesses : [],
+      opportunities: Array.isArray(raw?.swot?.opportunities) ? raw.swot.opportunities : [],
+      threats: Array.isArray(raw?.swot?.threats) ? raw.swot.threats : [],
+    },
+    threatsIdentification:
+      typeof raw?.threatsIdentification === "string" ? raw.threatsIdentification : "Not available for this analysis.",
+    competitorMapping:
+      typeof raw?.competitorMapping === "string" ? raw.competitorMapping : "Not available for this analysis.",
+    productMarketValue:
+      typeof raw?.productMarketValue === "string" ? raw.productMarketValue : "Not available for this analysis.",
+    executiveSummary:
+      typeof raw?.executiveSummary === "string" ? raw.executiveSummary : "Summary not available.",
+    feasibilityScore:
+      typeof raw?.feasibilityScore === "number" && raw.feasibilityScore >= 0 && raw.feasibilityScore <= 100
+        ? raw.feasibilityScore
+        : 50,
+    marketDemand: ["Low", "Medium", "High"].includes(raw?.marketDemand) ? raw.marketDemand : "Medium",
+    riskLevel: ["Low", "Medium", "High", "Low to Medium"].includes(raw?.riskLevel) ? raw.riskLevel : "Medium",
+  };
+}
+
 export async function generateFeasibilityReport(
   input: AdvisorInput
 ): Promise<FeasibilityReport> {
@@ -100,7 +133,7 @@ export async function generateFeasibilityReport(
   const raw = completion.choices[0]?.message?.content ?? "{}";
 
   try {
-    return JSON.parse(raw) as FeasibilityReport;
+    return normalizeReport(JSON.parse(raw));
   } catch {
     // Retry once with a stricter instruction if the model returns malformed JSON.
     // Always validate before rendering — never trust raw LLM output.
@@ -114,6 +147,6 @@ export async function generateFeasibilityReport(
       response_format: { type: "json_object" },
     });
     const retryRaw = retry.choices[0]?.message?.content ?? "{}";
-    return JSON.parse(retryRaw) as FeasibilityReport;
+    return normalizeReport(JSON.parse(retryRaw));
   }
 }
