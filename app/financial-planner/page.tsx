@@ -1,8 +1,13 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { formatINR, calculatePnL } from "@/lib/financialEngine";
-import { Trash2, Plus } from "lucide-react";
+import { useBusiness } from "@/lib/BusinessContext";
+import {
+  calculateFullFinancialPlan,
+  calculatePnL,
+  formatINR,
+} from "@/lib/financialEngine";
+import { Trash2, Plus, Info } from "lucide-react";
 
 interface LineItem {
   id: string;
@@ -25,6 +30,21 @@ const DEFAULT_EXPENSES: LineItem[] = [
 const DEFAULT_REVENUE: LineItem[] = [{ id: "1", label: "Sales Revenue", amount: 90000 }];
 
 export default function FinancialPlannerPage() {
+  const { businessDetails } = useBusiness();
+
+  // Auto-fill margin capital from the Business Advisor flow if the user
+  // already went through it — never make them re-enter it.
+  const [marginCapitalInput, setMarginCapitalInput] = useState(
+    businessDetails?.marginCapital ? String(businessDetails.marginCapital) : ""
+  );
+
+  const marginCapital = Number(marginCapitalInput) || 0;
+
+  const plan = useMemo(
+    () => (marginCapital > 0 ? calculateFullFinancialPlan(marginCapital) : null),
+    [marginCapital]
+  );
+
   const [investment, setInvestment] = useState(DEFAULT_INVESTMENT);
   const [expenses, setExpenses] = useState(DEFAULT_EXPENSES);
   const [revenue, setRevenue] = useState(DEFAULT_REVENUE);
@@ -42,8 +62,86 @@ export default function FinancialPlannerPage() {
   return (
     <div className="p-6 md:p-8 max-w-6xl mx-auto">
       <h1 className="text-2xl font-semibold mb-1">Financial Planner</h1>
-      <p className="text-sm text-slate-500 mb-6">Calculate your investment, costs and expected returns</p>
+      <p className="text-sm text-slate-500 mb-6">
+        Calculate your loan eligibility, scheme match, and monthly cash flow
+      </p>
 
+      {/* ---- Loan / Scheme Calculator ---- */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
+        <h2 className="font-semibold mb-4">Scheme & Loan Calculator</h2>
+
+        <div className="max-w-xs mb-5">
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            Available Margin Capital (₹)
+          </label>
+          <input
+            type="number"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
+            placeholder="e.g. 100000"
+            value={marginCapitalInput}
+            onChange={(e) => setMarginCapitalInput(e.target.value)}
+          />
+          {businessDetails?.marginCapital && (
+            <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1">
+              <Info className="h-3 w-3" /> Pre-filled from your Business Advisor plan
+            </p>
+          )}
+        </div>
+
+        {plan && (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
+              <MiniStat label="Project Cost" value={formatINR(plan.details.projectCost)} />
+              <MiniStat label="Loan Amount" value={formatINR(plan.details.loanAmount)} />
+              <MiniStat
+                label="Scheme"
+                value={plan.details.scheme?.name ?? "Exceeds Limits"}
+              />
+              <MiniStat
+                label="Interest Rate"
+                value={plan.details.scheme ? `${plan.details.scheme.interestRate}% p.a.` : "—"}
+              />
+            </div>
+
+            {plan.details.exceedsLimits ? (
+              <div className="bg-amber-50 text-amber-700 text-sm rounded-lg p-4">
+                Your project cost of {formatINR(plan.details.projectCost)} exceeds the ₹50 lakh
+                Term Loan Scheme ceiling. This application needs manual review by a State
+                Channelizing Agency (SCA) — it doesn&apos;t fit either standard scheme
+                automatically.
+              </div>
+            ) : (
+              <div className="bg-emerald-50 text-emerald-800 text-sm rounded-lg p-4 mb-5">
+                Your project cost of <strong>{formatINR(plan.details.projectCost)}</strong> falls
+                under the <strong>{plan.details.scheme!.name}</strong> because it is{" "}
+                {plan.details.scheme!.name === "Micro Finance Scheme"
+                  ? "up to ₹1.40 lakh"
+                  : "between ₹1.40 lakh and ₹50 lakh"}
+                .
+              </div>
+            )}
+
+            {plan.emiSchedule && (
+              <div>
+                <h3 className="text-sm font-semibold mb-2">Repayment Timeline</h3>
+                <p className="text-sm text-slate-600 mb-3">
+                  You have a <strong>{plan.details.scheme!.moratoriumMonths}-month grace period</strong>{" "}
+                  (moratorium) before payments start. After that, you&apos;ll pay{" "}
+                  <strong>{formatINR(plan.emiSchedule.quarterlyEMI)} every quarter</strong> for{" "}
+                  {plan.details.scheme!.tenureYears} years.
+                </p>
+                <div className="grid grid-cols-3 gap-3">
+                  <MiniStat label="Moratorium (no payment)" value={`${plan.emiSchedule.moratoriumQuarters} qtr`} />
+                  <MiniStat label="Repayment period" value={`${plan.emiSchedule.repaymentQuarters} qtr`} />
+                  <MiniStat label="Quarterly EMI" value={formatINR(plan.emiSchedule.quarterlyEMI)} />
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* ---- Cashbook / P&L ---- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <LineItemCard
           title="Investment Calculator"
@@ -78,7 +176,8 @@ export default function FinancialPlannerPage() {
         </div>
         {pnl.breakEvenMonths !== null && (
           <p className="text-sm text-slate-500 mt-4">
-            Estimated break-even period: <strong className="text-slate-700">{pnl.breakEvenMonths} months</strong>
+            Estimated break-even period:{" "}
+            <strong className="text-slate-700">{pnl.breakEvenMonths} months</strong>
           </p>
         )}
       </div>
@@ -152,6 +251,15 @@ function Stat({ label, value, highlight }: { label: string; value: string; highl
     <div className={`rounded-xl p-4 ${highlight ? "bg-emerald-50" : "bg-slate-50"}`}>
       <div className="text-xs text-slate-500 mb-1">{label}</div>
       <div className={`text-lg font-semibold ${highlight ? "text-emerald-700" : ""}`}>{value}</div>
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-slate-50 rounded-lg p-3">
+      <div className="text-xs text-slate-400 mb-1">{label}</div>
+      <div className="text-sm font-semibold">{value}</div>
     </div>
   );
 }
