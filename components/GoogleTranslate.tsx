@@ -29,8 +29,13 @@ export default function GoogleTranslate() {
                 {
                     pageLanguage: "en",
                     includedLanguages: INCLUDED_LANGUAGES,
-                    layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
                     autoDisplay: false,
+                    // No `layout` set on purpose — this renders the classic gadget as
+                    // a real <select class="goog-te-combo">, which is small,
+                    // reliably stylable, and matches globals.css. The "SIMPLE" inline
+                    // layout renders a completely different DOM (a clickable
+                    // <span>+popup, not a <select>) that our CSS doesn't target,
+                    // which is what caused the oversized, unstyled two-line box.
                 },
                 "google_translate_element"
             );

@@ -30,13 +30,94 @@ export default function ReportPage() {
     );
   }
 
+  const handleDownload = () => {
+    const lines: string[] = [];
+    const push = (text = "") => lines.push(text);
+    const heading = (text: string) => {
+      push(text);
+      push("-".repeat(text.length));
+    };
+
+    push("ASPIRE — AI Business Advisory Report");
+    push("=".repeat(40));
+    push(`Generated: ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}`);
+    push();
+    heading("BUSINESS DETAILS");
+    push(`Business Type: ${businessDetails.businessCategory}`);
+    push(`Location: ${businessDetails.location}, ${businessDetails.state}`);
+    push(`Margin Capital: ${formatINR(businessDetails.marginCapital)}`);
+    push(`Experience: ${businessDetails.experience}`);
+    push();
+    heading("EXECUTIVE SUMMARY");
+    push(feasibilityReport.executiveSummary);
+    push(`Feasibility Score: ${feasibilityReport.feasibilityScore}/100`);
+    push(`Market Demand: ${feasibilityReport.marketDemand}`);
+    push(`Risk Level: ${feasibilityReport.riskLevel}`);
+    push();
+    heading("MARKET REACH");
+    push(feasibilityReport.marketReach);
+    push();
+    heading("OPPORTUNITY ANALYSIS");
+    push(feasibilityReport.opportunityAnalysis);
+    push();
+    heading("SWOT ANALYSIS");
+    push(`Strengths: ${feasibilityReport.swot.strengths.join("; ")}`);
+    push(`Weaknesses: ${feasibilityReport.swot.weaknesses.join("; ")}`);
+    push(`Opportunities: ${feasibilityReport.swot.opportunities.join("; ")}`);
+    push(`Threats: ${feasibilityReport.swot.threats.join("; ")}`);
+    push();
+    heading("THREATS IDENTIFICATION");
+    push(feasibilityReport.threatsIdentification);
+    push();
+    heading("COMPETITOR MAPPING");
+    push(feasibilityReport.competitorMapping);
+    push();
+    heading("PRODUCT MARKET VALUE & PRICING");
+    push(feasibilityReport.productMarketValue);
+    push();
+    heading("FINANCIAL STRUCTURING PLAN");
+    if (financialPlan.details.exceedsLimits) {
+      push(
+        `Project cost of ${formatINR(financialPlan.details.projectCost)} exceeds standard scheme limits — needs manual review by a Channel Partner.`
+      );
+    } else {
+      push(`Project Cost: ${formatINR(financialPlan.details.projectCost)}`);
+      push(`Loan Amount: ${formatINR(financialPlan.details.loanAmount)}`);
+      push(`Scheme: ${financialPlan.details.scheme!.name}`);
+      push(`Interest Rate: ${financialPlan.details.scheme!.interestRate}% p.a.`);
+      push(`Tenure: ${financialPlan.details.scheme!.tenureYears} years`);
+      push(`Moratorium: ${financialPlan.details.scheme!.moratoriumMonths} months`);
+      if (financialPlan.emiSchedule) {
+        push(`Quarterly EMI: ${formatINR(financialPlan.emiSchedule.quarterlyEMI)}`);
+      }
+    }
+    push();
+    push("-".repeat(40));
+    push("Note: This is an AI-estimated analysis based on regional demographic");
+    push("and economic patterns, not live field survey data. Verify scheme");
+    push("terms with your Channel Partner before applying.");
+
+    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ASPIRE_Report_${businessDetails.businessCategory}_${businessDetails.location}.txt`.replace(/\s+/g, "_");
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="p-6 md:p-8 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-1">
         <Link href="/dashboard" className="flex items-center gap-1 text-sm text-slate-400 hover:text-slate-600">
           <ArrowLeft className="h-4 w-4" /> Back
         </Link>
-        <button className="flex items-center gap-2 text-sm border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-50">
+        <button
+          onClick={handleDownload}
+          className="flex items-center gap-2 text-sm border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-50"
+        >
           <Download className="h-4 w-4" /> Download Report
         </button>
       </div>
@@ -143,8 +224,8 @@ function QuickAssistant({ businessDetails }: { businessDetails: NonNullable<Retu
             key={b.id}
             onClick={() => handleClick(b.id)}
             className={`w-full text-left text-xs px-3 py-2.5 rounded-lg border transition-colors ${activeQuestion === b.id
-              ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-              : "border-slate-200 hover:border-slate-300 text-slate-600"
+                ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                : "border-slate-200 hover:border-slate-300 text-slate-600"
               }`}
           >
             {b.label}
