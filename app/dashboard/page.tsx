@@ -13,7 +13,6 @@ import {
   Landmark,
   TrendingUp as MarketIcon,
   MapPin,
-  Bell,
 } from "lucide-react";
 import { formatINR } from "@/lib/financialEngine";
 
@@ -38,10 +37,6 @@ export default function DashboardPage() {
               {businessDetails.location}, {businessDetails.state}
             </div>
           )}
-          <Bell className="h-5 w-5 text-slate-400" />
-          <div className="h-9 w-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm font-medium">
-            RK
-          </div>
         </div>
       </div>
 

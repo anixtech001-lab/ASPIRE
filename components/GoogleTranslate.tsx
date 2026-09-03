@@ -14,11 +14,7 @@ declare global {
     }
 }
 
-// Languages relevant to rural/semi-urban Indian micro-entrepreneurs —
-// covers the major regional languages. "en" (English) is always available
-// as the default/original.
-const INCLUDED_LANGUAGES =
-    "hi,bn,ta,te,mr,gu,kn,ml,pa,ur,or,as,en";
+const INCLUDED_LANGUAGES = "hi,bn,ta,te,mr,gu,kn,ml,pa,ur,or,as,en";
 
 export default function GoogleTranslate() {
     const initialized = useRef(false);
@@ -40,8 +36,6 @@ export default function GoogleTranslate() {
             );
         };
 
-        // Don't double-inject the script if it's already there (e.g. fast
-        // client-side navigation remounting this component)
         if (!document.getElementById("google-translate-script")) {
             const script = document.createElement("script");
             script.id = "google-translate-script";
@@ -49,15 +43,34 @@ export default function GoogleTranslate() {
             script.async = true;
             document.body.appendChild(script);
         } else if (window.google?.translate) {
-            // Script already loaded from a previous mount — just re-init.
             window.googleTranslateElementInit();
         }
+
+        // CSS alone isn't always enough — Google's banner iframe and the
+        // `top: 40px` it forces on <body> are applied via inline styles that
+        // can slip in after our stylesheet loads (or on route changes when the
+        // banner re-triggers). This observer actively strips them the moment
+        // they appear, as a belt-and-suspenders fix alongside globals.css.
+        const stripBanner = () => {
+            document.querySelectorAll(".goog-te-banner-frame").forEach((el) => {
+                (el as HTMLElement).style.display = "none";
+            });
+            if (document.body.style.top && document.body.style.top !== "0px") {
+                document.body.style.top = "0px";
+            }
+        };
+
+        stripBanner();
+        const observer = new MutationObserver(stripBanner);
+        observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+
+        return () => observer.disconnect();
     }, []);
 
     return (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5">
-            <Languages className="h-4 w-4 text-white/50 shrink-0" />
-            <div id="google_translate_element" className="aspire-gtranslate min-w-0" />
+        <div className="flex items-center gap-1.5">
+            <Languages className="h-4 w-4 text-slate-400 shrink-0" />
+            <div id="google_translate_element" className="aspire-gtranslate" />
         </div>
     );
 }

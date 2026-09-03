@@ -8,15 +8,21 @@ body {
 
 /* --- Google Translate widget cleanup ---
    Google injects a top banner iframe + shifts <body> down when a language
-   is selected, and its default gadget styling doesn't match our dark
-   sidebar. This hides the banner and restyles the dropdown to blend in,
-   while keeping the required attribution/dropdown visible and functional. */
-.goog-te-banner-frame {
+   is selected, and its default gadget styling doesn't match our light
+   TopBar. This hides the banner (see also the MutationObserver fallback in
+   GoogleTranslate.tsx — CSS alone isn't always reliable here) and restyles
+   the dropdown to blend into the light top bar, while keeping the required
+   attribution/dropdown visible and functional. */
+.goog-te-banner-frame,
+.goog-te-banner-frame.skiptranslate {
   display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
 }
 
 body {
   top: 0 !important;
+  position: static !important;
 }
 
 .goog-te-gadget {
@@ -27,12 +33,15 @@ body {
 
 .goog-te-gadget .goog-te-combo {
   font-size: 13px !important;
-  color: #fff !important;
-  background: transparent !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #334155 !important;
+  /* slate-700, matches TopBar text */
+  background: #fff !important;
+  border: 1px solid #e2e8f0 !important;
+  /* slate-200 */
   border-radius: 6px !important;
-  padding: 4px 6px !important;
-  max-width: 140px;
+  padding: 3px 6px !important;
+  max-width: 110px;
+  cursor: pointer;
 }
 
 .goog-te-gadget-icon {

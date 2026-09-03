@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { BusinessProvider } from "@/lib/BusinessContext";
 import Sidebar from "@/components/Sidebar";
+import TopBar from "@/components/TopBar";
 import GoogleTranslateDomGuard from "@/components/GoogleTranslateDomGuard";
 import "./globals.css";
 
@@ -17,7 +18,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <GoogleTranslateDomGuard />
         <BusinessProvider>
           <Sidebar />
-          <div className="md:pl-64">{children}</div>
+          <TopBar />
+          <div className="md:pl-64 pt-14">{children}</div>
         </BusinessProvider>
       </body>
     </html>
