@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useBusiness } from "@/lib/BusinessContext";
+import { QuickQuestionId } from "@/lib/ai";
 import { formatINR } from "@/lib/financialEngine";
-import { Download, ArrowLeft } from "lucide-react";
+import { Download, ArrowLeft, Info } from "lucide-react";
 
 const TABS = [
   "Overview",
@@ -40,9 +41,13 @@ export default function ReportPage() {
         </button>
       </div>
       <h1 className="text-xl font-semibold mt-3">AI Business Advisory Report</h1>
-      <p className="text-sm text-slate-500 mb-6">
+      <p className="text-sm text-slate-500 mb-3">
         Generated for {businessDetails.location}, {businessDetails.state} · {businessDetails.businessCategory}
       </p>
+      <div className="inline-flex items-center gap-1.5 text-xs text-slate-500 bg-slate-100 rounded-full px-3 py-1.5 mb-6">
+        <Info className="h-3.5 w-3.5 shrink-0" />
+        AI-Estimated Analysis — based on regional demographic &amp; economic patterns, not live field survey data
+      </div>
 
       <div className="flex gap-6 border-b border-slate-200 mb-6 overflow-x-auto">
         {TABS.map((t, i) => (
@@ -66,19 +71,101 @@ export default function ReportPage() {
           {tab === 4 && <FinancialTab plan={financialPlan} />}
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 h-fit">
-          <h3 className="font-semibold text-sm mb-4">At a Glance</h3>
-          <GlanceRow label="Business Type" value={businessDetails.businessCategory} />
-          <GlanceRow label="Location" value={`${businessDetails.location}, ${businessDetails.state}`} />
-          <GlanceRow label="Project Cost" value={formatINR(financialPlan.details.projectCost)} />
-          <GlanceRow label="Loan Amount" value={formatINR(financialPlan.details.loanAmount)} />
-          <GlanceRow
-            label="Scheme"
-            value={financialPlan.details.scheme?.name ?? "Exceeds standard limits"}
-          />
-          <GlanceRow label="Risk Level" value={feasibilityReport.riskLevel} last />
+        <div className="space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 h-fit">
+            <h3 className="font-semibold text-sm mb-4">At a Glance</h3>
+            <GlanceRow label="Business Type" value={businessDetails.businessCategory} />
+            <GlanceRow label="Location" value={`${businessDetails.location}, ${businessDetails.state}`} />
+            <GlanceRow label="Project Cost" value={formatINR(financialPlan.details.projectCost)} />
+            <GlanceRow label="Loan Amount" value={formatINR(financialPlan.details.loanAmount)} />
+            <GlanceRow
+              label="Scheme"
+              value={financialPlan.details.scheme?.name ?? "Exceeds standard limits"}
+            />
+            <GlanceRow label="Risk Level" value={feasibilityReport.riskLevel} last />
+          </div>
+
+          <QuickAssistant businessDetails={businessDetails} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function QuickAssistant({ businessDetails }: { businessDetails: NonNullable<ReturnType<typeof useBusiness>["businessDetails"]> }) {
+  const [activeQuestion, setActiveQuestion] = useState<QuickQuestionId | null>(null);
+  const [answers, setAnswers] = useState<Partial<Record<QuickQuestionId, string>>>({});
+  const [loadingId, setLoadingId] = useState<QuickQuestionId | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const buttons: { id: QuickQuestionId; label: string }[] = [
+    { id: "raw_material", label: "💰 Saste raw material kahan milega?" },
+    { id: "emi_default", label: "⚠️ EMI na de paun toh kya hoga?" },
+    { id: "licenses", label: "📋 Kaun se license chahiye?" },
+  ];
+
+  const handleClick = async (id: QuickQuestionId) => {
+    setActiveQuestion(id);
+    setError(null);
+
+    if (answers[id]) return; // already fetched — just show it
+
+    setLoadingId(id);
+    try {
+      const res = await fetch("/api/quick-advice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          questionId: id,
+          businessCategory: businessDetails.businessCategory,
+          location: businessDetails.location,
+          state: businessDetails.state,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Something went wrong");
+      setAnswers((prev) => ({ ...prev, [id]: data.answer }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't get an answer. Please try again.");
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 p-5">
+      <h3 className="font-semibold text-sm mb-1">Quick Questions</h3>
+      <p className="text-xs text-slate-400 mb-4">Common questions, answered for your business</p>
+
+      <div className="space-y-2">
+        {buttons.map((b) => (
+          <button
+            key={b.id}
+            onClick={() => handleClick(b.id)}
+            className={`w-full text-left text-xs px-3 py-2.5 rounded-lg border transition-colors ${activeQuestion === b.id
+                ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                : "border-slate-200 hover:border-slate-300 text-slate-600"
+              }`}
+          >
+            {b.label}
+          </button>
+        ))}
+      </div>
+
+      {loadingId && (
+        <p className="text-xs text-slate-400 mt-3 flex items-center gap-1.5">
+          <span className="h-3 w-3 border-2 border-slate-300 border-t-emerald-500 rounded-full animate-spin" />
+          Thinking…
+        </p>
+      )}
+
+      {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
+
+      {activeQuestion && answers[activeQuestion] && !loadingId && (
+        <div className="mt-3 text-xs text-slate-600 leading-relaxed bg-slate-50 rounded-lg p-3">
+          {answers[activeQuestion]}
+        </div>
+      )}
     </div>
   );
 }
