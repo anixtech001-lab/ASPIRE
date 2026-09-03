@@ -150,3 +150,57 @@ export async function generateFeasibilityReport(
     return normalizeReport(JSON.parse(retryRaw));
   }
 }
+
+// ---------------------------------------------------------------------------
+// Micro-Assistant — bounded, pre-defined quick-question feature on the
+// report page. Deliberately NOT a free-text chatbot: only these 3 fixed
+// questions are ever sent, so responses stay short, predictable, and safe
+// for a live demo (no open-ended input means no unpredictable/off-topic
+// model output in front of judges).
+// ---------------------------------------------------------------------------
+export type QuickQuestionId = "raw_material" | "emi_default" | "licenses";
+
+export const QUICK_QUESTIONS: Record<QuickQuestionId, string> = {
+  raw_material: "Mujhe saste mein raw material kahan se milega?",
+  emi_default: "Agar main pehle mahine EMI na de paun toh kya hoga?",
+  licenses: "Is business ko shuru karne ke liye kaun-kaun se license chahiye?",
+};
+
+export interface QuickAdviceContext {
+  businessCategory: string;
+  location: string;
+  state: string;
+}
+
+const QUICK_ADVICE_SYSTEM_PROMPT = `You are a practical business assistant for Indian rural
+micro-entrepreneurs. Answer in simple Hinglish (Hindi-English mix), 3-5 short sentences max,
+no headers or markdown formatting — plain conversational text only. Be concrete and specific
+to the business type and location given. For anything involving money, loans, or legal
+requirements, give general practical guidance and clearly suggest confirming exact
+details with the relevant bank/Channel Partner or local authority — never state exact
+penalty amounts, interest figures, or legal requirements as guaranteed fact.`;
+
+export async function generateQuickAdvice(
+  questionId: QuickQuestionId,
+  context: QuickAdviceContext
+): Promise<string> {
+  const question = QUICK_QUESTIONS[questionId];
+
+  const userPrompt = `Business: ${context.businessCategory} in ${context.location}, ${context.state}
+
+Question: ${question}
+
+Answer this specific question directly, in the context of this business and location.`;
+
+  const completion = await groq.chat.completions.create({
+    model: MODEL,
+    messages: [
+      { role: "system", content: QUICK_ADVICE_SYSTEM_PROMPT },
+      { role: "user", content: userPrompt },
+    ],
+    temperature: 0.5,
+    max_tokens: 300, // keeps answers short by design — this is a quick-tip widget, not a chat
+  });
+
+  return completion.choices[0]?.message?.content?.trim() || "Sorry, couldn't generate an answer right now — please try again.";
+}

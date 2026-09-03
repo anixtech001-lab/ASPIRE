@@ -143,8 +143,8 @@ function QuickAssistant({ businessDetails }: { businessDetails: NonNullable<Retu
             key={b.id}
             onClick={() => handleClick(b.id)}
             className={`w-full text-left text-xs px-3 py-2.5 rounded-lg border transition-colors ${activeQuestion === b.id
-                ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-                : "border-slate-200 hover:border-slate-300 text-slate-600"
+              ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+              : "border-slate-200 hover:border-slate-300 text-slate-600"
               }`}
           >
             {b.label}
