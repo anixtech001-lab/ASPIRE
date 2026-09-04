@@ -60,6 +60,11 @@ export default function GoogleTranslate() {
             document.querySelectorAll(".goog-te-banner-frame").forEach((el) => {
                 (el as HTMLElement).style.display = "none";
             });
+            // The "Powered by Google Translate" logo image isn't hidden by our
+            // CSS font-size trick (images ignore font-size) — remove it directly.
+            document.querySelectorAll(".goog-logo-link, .goog-te-gadget img").forEach((el) => {
+                (el as HTMLElement).style.display = "none";
+            });
             if (document.body.style.top && document.body.style.top !== "0px") {
                 document.body.style.top = "0px";
             }

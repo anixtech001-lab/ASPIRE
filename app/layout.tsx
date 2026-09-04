@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" translate="no">
       <body className="bg-[#F7F8F6] text-slate-900 antialiased">
         {/* Must render before any content that Google Translate could touch */}
         <GoogleTranslateDomGuard />

@@ -48,14 +48,27 @@ body {
   display: none !important;
 }
 
+/* The "Powered by Google Translate" line has a logo IMAGE next to the text.
+   font-size:0 above hides the text, but not the image — img dimensions
+   aren't affected by font-size, so it was floating awkwardly on its own.
+   Hide the logo link/image and the wrapping badge explicitly. */
+.goog-logo-link,
+.goog-te-gadget img,
+.goog-te-gadget-simple img,
+a.VIpgJd-ZVi9od-l4eHX-hSRGPd {
+  display: none !important;
+}
+
 .aspire-gtranslate {
   line-height: 1;
+  overflow: hidden;
 }
 
 #goog-gt-tt,
 .goog-te-balloon-frame,
 .goog-tooltip,
-.goog-tooltip:hover {
+.goog-tooltip:hover,
+iframe.goog-te-menu-frame {
   display: none !important;
 }
 
