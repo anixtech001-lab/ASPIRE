@@ -6,13 +6,12 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-/* --- Google Translate widget cleanup ---
-   Google injects a top banner iframe + shifts <body> down when a language
-   is selected, and its default gadget styling doesn't match our light
-   TopBar. This hides the banner (see also the MutationObserver fallback in
-   GoogleTranslate.tsx — CSS alone isn't always reliable here) and restyles
-   the dropdown to blend into the light top bar, while keeping the required
-   attribution/dropdown visible and functional. */
+/* --- Google Translate: our real widget is now fully hidden by design
+   (see components/GoogleTranslate.tsx — we drive it programmatically from
+   our own custom dropdown, so none of Google's own UI is ever rendered).
+   This block only handles the one thing that can still leak through: the
+   top banner iframe and body-shift Google sometimes attaches directly to
+   <body>, outside our hidden container, when translation activates. */
 .goog-te-banner-frame,
 .goog-te-banner-frame.skiptranslate {
   display: none !important;
@@ -23,45 +22,6 @@ body {
 body {
   top: 0 !important;
   position: static !important;
-}
-
-.goog-te-gadget {
-  font-size: 0 !important;
-  /* hides "Powered by" text, keeps the dropdown */
-  color: transparent !important;
-}
-
-.goog-te-gadget .goog-te-combo {
-  font-size: 13px !important;
-  color: #334155 !important;
-  /* slate-700, matches TopBar text */
-  background: #fff !important;
-  border: 1px solid #e2e8f0 !important;
-  /* slate-200 */
-  border-radius: 6px !important;
-  padding: 3px 6px !important;
-  max-width: 110px;
-  cursor: pointer;
-}
-
-.goog-te-gadget-icon {
-  display: none !important;
-}
-
-/* The "Powered by Google Translate" line has a logo IMAGE next to the text.
-   font-size:0 above hides the text, but not the image — img dimensions
-   aren't affected by font-size, so it was floating awkwardly on its own.
-   Hide the logo link/image and the wrapping badge explicitly. */
-.goog-logo-link,
-.goog-te-gadget img,
-.goog-te-gadget-simple img,
-a.VIpgJd-ZVi9od-l4eHX-hSRGPd {
-  display: none !important;
-}
-
-.aspire-gtranslate {
-  line-height: 1;
-  overflow: hidden;
 }
 
 #goog-gt-tt,
