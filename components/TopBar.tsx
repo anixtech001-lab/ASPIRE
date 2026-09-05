@@ -2,8 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Search } from "lucide-react";
+import Link from "next/link";
+import { Bell, Search, UserCircle } from "lucide-react";
 import { useSidebar } from "@/lib/SidebarContext";
+import { useProfile } from "@/lib/ProfileContext";
 import GoogleTranslate from "./GoogleTranslate";
 
 const SEARCHABLE_PAGES = [
@@ -20,6 +22,7 @@ const SEARCHABLE_PAGES = [
 
 export default function TopBar() {
     const { collapsed } = useSidebar();
+    const { profile } = useProfile();
     const router = useRouter();
     const inputRef = useRef<HTMLInputElement>(null);
     const [query, setQuery] = useState("");
@@ -96,9 +99,15 @@ export default function TopBar() {
                 <button className="text-slate-400 hover:text-slate-600 transition-colors">
                     <Bell className="h-4 w-4" />
                 </button>
-                <div className="h-8 w-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-medium">
-                    RK
-                </div>
+                <Link href="/profile" title="Profile & Settings">
+                    {profile.firstName ? (
+                        <div className="h-8 w-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-medium hover:bg-emerald-200 transition-colors">
+                            {(profile.firstName[0] + (profile.lastName?.[0] ?? "")).toUpperCase()}
+                        </div>
+                    ) : (
+                        <UserCircle className="h-8 w-8 text-slate-300 hover:text-slate-400 transition-colors" />
+                    )}
+                </Link>
             </div>
         </header>
     );

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { BusinessProvider } from "@/lib/BusinessContext";
 import { SidebarProvider } from "@/lib/SidebarContext";
+import { ProfileProvider } from "@/lib/ProfileContext";
 import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
 import AppShell from "@/components/AppShell";
@@ -26,11 +27,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Must render before any content that Google Translate could touch */}
         <GoogleTranslateDomGuard />
         <SidebarProvider>
-          <BusinessProvider>
-            <Sidebar />
-            <TopBar />
-            <AppShell>{children}</AppShell>
-          </BusinessProvider>
+          <ProfileProvider>
+            <BusinessProvider>
+              <Sidebar />
+              <TopBar />
+              <AppShell>{children}</AppShell>
+            </BusinessProvider>
+          </ProfileProvider>
         </SidebarProvider>
       </body>
     </html>
