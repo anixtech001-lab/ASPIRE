@@ -153,3 +153,82 @@ export function calculatePnL(input: PnLInput) {
 export function formatINR(amount: number): string {
   return "₹" + Math.round(amount).toLocaleString("en-IN");
 }
+
+// ---------------------------------------------------------------------------
+// Generic monthly EMI + amortization calculator — used by the Scheme Detail
+// view so a user can experiment with any scheme's principal/rate/tenure
+// (bank rates and tenures vary in practice, so these are editable, unlike
+// the fixed quarterly calculator above which only serves the two national
+// margin-capital schemes). During moratorium months, only interest is paid
+// (standard practice for these schemes); full reducing-balance EMI applies
+// after. Pure deterministic math — no AI involved.
+// ---------------------------------------------------------------------------
+export interface AmortizationRow {
+  month: number;
+  isMoratorium: boolean;
+  openingBalance: number;
+  emi: number;
+  principalPaid: number;
+  interestPaid: number;
+  closingBalance: number;
+}
+
+export interface MonthlyEMIResult {
+  monthlyEMI: number;
+  totalInterest: number;
+  totalRepayable: number;
+  schedule: AmortizationRow[];
+}
+
+export function calculateMonthlyEMI(
+  principal: number,
+  annualRatePct: number,
+  tenureMonths: number,
+  moratoriumMonths: number
+): MonthlyEMIResult {
+  if (principal <= 0 || tenureMonths <= 0) {
+    return { monthlyEMI: 0, totalInterest: 0, totalRepayable: 0, schedule: [] };
+  }
+
+  const monthlyRate = annualRatePct / 12 / 100;
+  const repaymentMonths = Math.max(tenureMonths - moratoriumMonths, 0);
+
+  const moratoriumEMI = principal * monthlyRate; // interest-only during moratorium
+  const postMoratoriumEMI =
+    repaymentMonths > 0 && monthlyRate > 0
+      ? (principal * monthlyRate * Math.pow(1 + monthlyRate, repaymentMonths)) /
+      (Math.pow(1 + monthlyRate, repaymentMonths) - 1)
+      : principal / Math.max(repaymentMonths, 1);
+
+  const schedule: AmortizationRow[] = [];
+  let balance = principal;
+  let totalInterest = 0;
+
+  for (let m = 1; m <= tenureMonths; m++) {
+    const isMoratorium = m <= moratoriumMonths;
+    const interestPaid = balance * monthlyRate;
+    const emi = isMoratorium ? moratoriumEMI : postMoratoriumEMI;
+    const principalPaid = isMoratorium ? 0 : Math.max(emi - interestPaid, 0);
+    const closingBalance = isMoratorium ? balance : Math.max(balance - principalPaid, 0);
+
+    schedule.push({
+      month: m,
+      isMoratorium,
+      openingBalance: Math.round(balance),
+      emi: Math.round(emi),
+      principalPaid: Math.round(principalPaid),
+      interestPaid: Math.round(interestPaid),
+      closingBalance: Math.round(closingBalance),
+    });
+
+    totalInterest += interestPaid;
+    balance = closingBalance;
+  }
+
+  return {
+    monthlyEMI: Math.round(postMoratoriumEMI || moratoriumEMI),
+    totalInterest: Math.round(totalInterest),
+    totalRepayable: Math.round(principal + totalInterest),
+    schedule,
+  };
+}

@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useBusiness } from "@/lib/BusinessContext";
 import { calculateFullFinancialPlan } from "@/lib/financialEngine";
 import { matchScheme, SchemeCriteria, MatchLabel } from "@/lib/schemeMatching";
 import { CheckCircle2, AlertCircle, XCircle } from "lucide-react";
+import SchemeDetailModal, { SchemeEmiDefaults } from "@/components/SchemeDetailModal";
 
 interface SchemeInfo {
   name: string;
@@ -14,6 +15,7 @@ interface SchemeInfo {
   note: string;
   applyUrl: string;
   criteria: SchemeCriteria;
+  emiDefaults: SchemeEmiDefaults;
 }
 
 const SCHEMES: SchemeInfo[] = [
@@ -27,13 +29,11 @@ const SCHEMES: SchemeInfo[] = [
     note: "General category: 15% urban / 25% rural. SC/ST/Women/NE/special category: 25% urban / 35% rural. Ceiling depends on whether your unit is manufacturing (₹50L) or service (₹20L) — confirm which applies to you.",
     applyUrl: "https://www.kviconline.gov.in/pmegpeportal/pmegphome/index.jsp",
     criteria: {
-      // PMEGP explicitly excludes primary agriculture/animal-husbandry
-      // production — dairy farming itself doesn't qualify, though
-      // dairy-product processing sometimes can. Kept conservative here.
       targetCategories: ["Retail", "Textiles", "Food Processing", "Handicrafts", "Services", "Other"],
       minProjectCost: 0,
       maxProjectCost: 5000000,
     },
+    emiDefaults: { rate: 9, tenureMonths: 84, moratoriumMonths: 6 },
   },
   {
     name: "Mudra Loan (PMMY)",
@@ -44,11 +44,8 @@ const SCHEMES: SchemeInfo[] = [
     ],
     note: "Tarun Plus (₹10L–₹20L) requires a clean repayment record on a prior Tarun loan.",
     applyUrl: "https://www.udyamimitra.in/",
-    criteria: {
-      targetCategories: "any",
-      minProjectCost: 0,
-      maxProjectCost: 2000000,
-    },
+    criteria: { targetCategories: "any", minProjectCost: 0, maxProjectCost: 2000000 },
+    emiDefaults: { rate: 10, tenureMonths: 60, moratoriumMonths: 3 },
   },
   {
     name: "Stand-Up India Scheme",
@@ -65,6 +62,7 @@ const SCHEMES: SchemeInfo[] = [
       maxProjectCost: 11000000,
       specialEligibility: "SC/ST or Women entrepreneur, for a new (greenfield) enterprise",
     },
+    emiDefaults: { rate: 10, tenureMonths: 84, moratoriumMonths: 18 },
   },
   {
     name: "Kisan Credit Card (KCC)",
@@ -73,13 +71,10 @@ const SCHEMES: SchemeInfo[] = [
       { label: "Interest Rate", value: "~4% effective (with subvention)" },
       { label: "Limit", value: "Up to ₹3L at subsidized rate" },
     ],
-    note: "This is a revolving working-capital limit, not a one-time project loan. Subsidized rate applies only for prompt repayment.",
+    note: "This is a revolving working-capital limit, not a fixed-tenure project loan — the calculator below is illustrative only, treating it like a term loan for comparison purposes. Subsidized rate applies only for prompt repayment.",
     applyUrl: "https://www.myscheme.gov.in/schemes/kcc",
-    criteria: {
-      targetCategories: ["Dairy"],
-      minProjectCost: 0,
-      maxProjectCost: 300000,
-    },
+    criteria: { targetCategories: ["Dairy"], minProjectCost: 0, maxProjectCost: 300000 },
+    emiDefaults: { rate: 4, tenureMonths: 12, moratoriumMonths: 0 },
   },
 ];
 
@@ -91,6 +86,7 @@ const LABEL_STYLE: Record<MatchLabel, { bg: string; text: string; icon: typeof C
 
 export default function SchemesPage() {
   const { businessDetails, financialPlan } = useBusiness();
+  const [openScheme, setOpenScheme] = useState<SchemeInfo | null>(null);
 
   const projectCost = useMemo(() => {
     if (financialPlan) return financialPlan.details.projectCost;
@@ -107,6 +103,17 @@ export default function SchemesPage() {
       match: matchScheme(businessDetails, projectCost, scheme.criteria),
     })).sort((a, b) => b.match.score - a.match.score);
   }, [businessDetails, projectCost]);
+
+  const getDefaultPrincipal = (scheme: SchemeInfo) => {
+    const loanAmount = financialPlan?.details.loanAmount;
+    const fallback = scheme.criteria.maxProjectCost / 3;
+    const base = loanAmount && loanAmount > 0 ? loanAmount : fallback;
+    return Math.min(Math.round(base), scheme.criteria.maxProjectCost);
+  };
+
+  const openSchemeMatch = openScheme
+    ? ranked?.find((r) => r.scheme.name === openScheme.name)?.match ?? null
+    : null;
 
   return (
     <div className="p-6 md:p-8 max-w-6xl mx-auto">
@@ -164,34 +171,22 @@ export default function SchemesPage() {
                 </div>
               ))}
 
-              {match && match.reasons.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-slate-100">
-                  <div className="text-[11px] font-semibold text-slate-500 mb-1.5">Why this matches you</div>
-                  <ul className="space-y-1">
-                    {match.reasons.map((r, ri) => (
-                      <li key={ri} className="text-[11px] text-slate-500 flex items-start gap-1">
-                        <span className="text-emerald-500 mt-0.5">✓</span> {r}
-                      </li>
-                    ))}
-                    {match.caveats.map((c, ci) => (
-                      <li key={`c-${ci}`} className="text-[11px] text-amber-600 flex items-start gap-1">
-                        <span className="mt-0.5">!</span> {c}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <p className="text-[11px] text-slate-400 mt-3 mb-4 leading-snug">{scheme.note}</p>
-
-              <a
-                href={scheme.applyUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs font-medium text-emerald-600 border border-emerald-200 rounded-lg py-2 text-center hover:bg-emerald-50 transition-colors mt-auto"
-              >
-                Apply Now →
-              </a>
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => setOpenScheme(scheme)}
+                  className="flex-1 text-xs font-medium text-slate-600 border border-slate-200 rounded-lg py-2 text-center hover:bg-slate-50 transition-colors"
+                >
+                  View Details &amp; EMI
+                </button>
+                <a
+                  href={scheme.applyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 text-xs font-medium text-emerald-600 border border-emerald-200 rounded-lg py-2 text-center hover:bg-emerald-50 transition-colors"
+                >
+                  Apply Now →
+                </a>
+              </div>
             </div>
           );
         })}
@@ -203,6 +198,20 @@ export default function SchemesPage() {
         available information as of 2026. Always verify current terms on the official
         portal before applying.
       </p>
+
+      {openScheme && (
+        <SchemeDetailModal
+          name={openScheme.name}
+          desc={openScheme.desc}
+          note={openScheme.note}
+          applyUrl={openScheme.applyUrl}
+          emiDefaults={openScheme.emiDefaults}
+          defaultPrincipal={getDefaultPrincipal(openScheme)}
+          maxPrincipal={openScheme.criteria.maxProjectCost}
+          match={openSchemeMatch}
+          onClose={() => setOpenScheme(null)}
+        />
+      )}
     </div>
   );
 }
