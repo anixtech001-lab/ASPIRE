@@ -66,7 +66,7 @@ export default function Sidebar() {
         {!collapsed && "Collapse"}
       </button>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
+      <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-1 sidebar-scroll">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname?.startsWith(href);
           return (

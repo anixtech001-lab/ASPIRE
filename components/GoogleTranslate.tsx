@@ -116,8 +116,16 @@ export default function GoogleTranslate() {
                     </option>
                 ))}
             </select>
-            {/* Google's real widget — intentionally hidden, see comment above */}
-            <div id="google_translate_element" className="hidden" aria-hidden="true" />
+            {/* Google's real widget — kept in the layout (NOT display:none,
+          which stops Google's script from initializing the underlying
+          .goog-te-combo select at all) but visually invisible and
+          zero-size, so translation actually works while nothing is ever
+          shown to the user. */}
+            <div
+                id="google_translate_element"
+                style={{ position: "absolute", width: 0, height: 0, overflow: "hidden", opacity: 0, pointerEvents: "none" }}
+                aria-hidden="true"
+            />
         </div>
     );
 }
