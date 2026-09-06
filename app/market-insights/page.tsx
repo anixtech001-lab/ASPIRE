@@ -44,29 +44,42 @@ export default function MarketInsightsPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                 <MiniStat icon={<TrendingUp className="h-4 w-4" />} label="Market Demand" value={feasibilityReport.marketDemand} />
-                <MiniStat
-                    icon={<Target className="h-4 w-4" />}
-                    label="Competitor Density"
-                    value={feasibilityReport.competitorMapping.split(".")[0].slice(0, 40) + "…"}
-                />
+                <MiniStat icon={<Target className="h-4 w-4" />} label="Market Saturation" value={feasibilityReport.competitorMapping.saturationLevel} />
                 <MiniStat icon={<Users className="h-4 w-4" />} label="Feasibility Score" value={`${feasibilityReport.feasibilityScore}/100`} />
             </div>
 
             <div className="space-y-4">
                 <Section icon={<Users className="h-4 w-4 text-emerald-600" />} title="Market Reach">
-                    {feasibilityReport.marketReach}
+                    <p className="text-sm text-slate-600 leading-relaxed mb-3">{feasibilityReport.marketReach.summary}</p>
+                    <div className="flex gap-4 text-xs text-slate-500">
+                        <span>~{feasibilityReport.marketReach.population5km.toLocaleString("en-IN")} people within 5km</span>
+                        <span>~{feasibilityReport.marketReach.population10km.toLocaleString("en-IN")} people within 10km</span>
+                    </div>
                 </Section>
 
                 <Section icon={<TrendingUp className="h-4 w-4 text-emerald-600" />} title="Opportunity Analysis">
-                    {feasibilityReport.opportunityAnalysis}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {feasibilityReport.opportunityAnalysis.map((o, i) => (
+                            <div key={i} className="bg-emerald-50 rounded-xl p-3">
+                                <div className="text-sm font-semibold text-emerald-800 mb-1">{o.title}</div>
+                                <p className="text-xs text-emerald-700">{o.description}</p>
+                            </div>
+                        ))}
+                    </div>
                 </Section>
 
                 <Section icon={<Target className="h-4 w-4 text-emerald-600" />} title="Competitor Mapping">
-                    {feasibilityReport.competitorMapping}
+                    {feasibilityReport.competitorMapping.summary}
                 </Section>
 
                 <Section icon={<DollarSign className="h-4 w-4 text-emerald-600" />} title="Pricing Intelligence">
-                    {feasibilityReport.productMarketValue}
+                    <p className="text-sm text-slate-600 mb-2">{feasibilityReport.productMarketValue.summary}</p>
+                    {feasibilityReport.productMarketValue.suggestedPrice > 0 && (
+                        <p className="text-xs text-slate-500">
+                            Suggested: ₹{feasibilityReport.productMarketValue.suggestedPrice} {feasibilityReport.productMarketValue.unit} · Regional
+                            average: ₹{feasibilityReport.productMarketValue.regionalAveragePrice}
+                        </p>
+                    )}
                 </Section>
 
                 <div className="bg-white rounded-2xl border border-slate-200 p-6">
@@ -85,9 +98,9 @@ export default function MarketInsightsPage() {
                         <div>
                             <div className="text-xs font-semibold text-amber-700 mb-2">Threats</div>
                             <ul className="space-y-1.5">
-                                {feasibilityReport.swot.threats.map((t, i) => (
+                                {feasibilityReport.threatsIdentification.risks.map((r, i) => (
                                     <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
-                                        <span className="text-amber-500 mt-0.5">↓</span> {t}
+                                        <span className="text-amber-500 mt-0.5">↓</span> {r.name} ({r.severity})
                                     </li>
                                 ))}
                             </ul>
@@ -127,7 +140,7 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
                 {icon}
                 {title}
             </h3>
-            <p className="text-sm text-slate-600 leading-relaxed">{children}</p>
+            <div className="text-sm text-slate-600 leading-relaxed">{children}</div>
         </div>
     );
 }

@@ -2,11 +2,6 @@ import Groq from "groq-sdk";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-// llama-3.3-70b-versatile was deprecated by Groq on 17 June 2026 and fully
-// decommissioned on 16 August 2026 — using it now returns an error on every
-// call. Groq's recommended replacement is openai/gpt-oss-120b. Configurable
-// via env var so a future Groq deprecation doesn't require a code change —
-// just update GROQ_MODEL in Vercel's environment variables.
 const MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
 
 export interface AdvisorInput {
@@ -18,28 +13,68 @@ export interface AdvisorInput {
   motivation: string;
 }
 
-// The 6 sections below are EXACTLY what the SIH26091 spec requires.
-// feasibilityScore / marketDemand / riskLevel / executiveSummary are
-// additive extras (not in the spec) kept only so the Dashboard stat cards
-// still have something to show — safe to ignore/remove if you want a
-// strictly spec-only response shape.
+// ---------------------------------------------------------------------------
+// Rich, chart-ready feasibility report schema. Every qualitative field
+// (summaries, reasoning) comes from the LLM; the numeric estimates below are
+// ALSO LLM-generated (plausible regional estimates, same as the text), never
+// pulled from a real data source — they exist so the UI can chart them, not
+// because they're verified figures. Financial numbers (project cost, EMI,
+// loan amount) are NEVER part of this — those come only from
+// financialEngine.ts's deterministic math.
+// ---------------------------------------------------------------------------
+
+export interface MarketReachData {
+  summary: string;
+  population5km: number;
+  population10km: number;
+  channels: string[];
+}
+
+export interface OpportunityCard {
+  title: string;
+  description: string;
+}
+
+export type RiskSeverity = "Low" | "Medium" | "High";
+
+export interface RiskItem {
+  name: string;
+  severity: RiskSeverity;
+}
+
+export interface ThreatsData {
+  summary: string;
+  risks: RiskItem[];
+}
+
+export interface CompetitorMappingData {
+  summary: string;
+  saturationLevel: RiskSeverity;
+}
+
+export interface ProductMarketValueData {
+  summary: string;
+  suggestedPrice: number;
+  regionalAveragePrice: number;
+  unit: string;
+}
+
 export interface FeasibilityReport {
-  marketReach: string;
-  opportunityAnalysis: string;
+  marketReach: MarketReachData;
+  opportunityAnalysis: OpportunityCard[];
   swot: {
     strengths: string[];
     weaknesses: string[];
     opportunities: string[];
     threats: string[];
   };
-  threatsIdentification: string;
-  competitorMapping: string;
-  productMarketValue: string;
+  threatsIdentification: ThreatsData;
+  competitorMapping: CompetitorMappingData;
+  productMarketValue: ProductMarketValueData;
 
-  // --- additive, non-spec fields (dashboard UX continuity) ---
   executiveSummary: string;
-  feasibilityScore: number; // 0-100
-  marketDemand: "Low" | "Medium" | "High";
+  feasibilityScore: number;
+  marketDemand: RiskSeverity;
   riskLevel: "Low" | "Medium" | "High" | "Low to Medium";
 }
 
@@ -47,24 +82,48 @@ const SYSTEM_PROMPT = `You are a rural business consultant AI for India. You ana
 hyper-local micro-enterprise opportunities for first-time entrepreneurs, grounded in
 plausible, specific Indian rural/semi-urban economic context. Never give generic
 startup advice — always tie your answer to the specific village/district and
-business type given.
+business type given. Where a numeric estimate is requested, give a specific
+plausible number appropriate to the location's scale — never leave it as 0 or a
+placeholder.
 
 Respond ONLY with valid JSON, no markdown fences, no commentary, matching exactly
 this structure:
 
 {
-  "marketReach": "string - estimated consumer base within 5-10km radius and primary distribution channels",
-  "opportunityAnalysis": "string - underserved niches for this business type in this local economy",
+  "marketReach": {
+    "summary": "string - 1-2 sentences on reach and distribution",
+    "population5km": number,
+    "population10km": number,
+    "channels": ["string", ...]
+  },
+  "opportunityAnalysis": [
+    { "title": "short string", "description": "1-2 sentence string" },
+    { "title": "short string", "description": "1-2 sentence string" }
+  ],
   "swot": {
     "strengths": ["string", ...],
     "weaknesses": ["string", ...],
     "opportunities": ["string", ...],
     "threats": ["string", ...]
   },
-  "threatsIdentification": "string - specific local risks: supply chain, seasonality, single-buyer dependency",
-  "competitorMapping": "string - estimated density of similar existing businesses in this area",
-  "productMarketValue": "string - suggested pricing strategy based on regional purchasing power",
-  "executiveSummary": "2-3 sentence plain-language summary of the opportunity",
+  "threatsIdentification": {
+    "summary": "string - 1-2 sentences",
+    "risks": [
+      { "name": "short risk name", "severity": "Low" | "Medium" | "High" },
+      { "name": "short risk name", "severity": "Low" | "Medium" | "High" }
+    ]
+  },
+  "competitorMapping": {
+    "summary": "string - 1-2 sentences",
+    "saturationLevel": "Low" | "Medium" | "High"
+  },
+  "productMarketValue": {
+    "summary": "string - 1-2 sentences",
+    "suggestedPrice": number,
+    "regionalAveragePrice": number,
+    "unit": "string, e.g. 'per litre' or 'per unit'"
+  },
+  "executiveSummary": "2-3 sentence plain-language summary",
   "feasibilityScore": number (0-100),
   "marketDemand": "Low" | "Medium" | "High",
   "riskLevel": "Low" | "Medium" | "High" | "Low to Medium"
@@ -82,42 +141,72 @@ Motivation: ${input.motivation}
 Be specific to this location and business type. Generate the JSON report now.`;
 }
 
+function coerceSeverity(v: any, fallback: RiskSeverity = "Medium"): RiskSeverity {
+  return ["Low", "Medium", "High"].includes(v) ? v : fallback;
+}
+
 function normalizeReport(raw: any): FeasibilityReport {
-  // Groq's json_object mode (used here) guarantees valid JSON syntax, but
-  // NOT that every key we asked for is actually present — the model can
-  // still omit a field. Without this normalization, a missing `swot` or
-  // `marketReach` would crash the report page with a client-side exception
-  // the moment the UI tries to read it. Every field gets a safe fallback.
+  // The LLM can omit or malform any field even in json_object mode — every
+  // field gets a safe fallback so the chart-heavy UI never crashes.
+  const marketReach: MarketReachData = {
+    summary: typeof raw?.marketReach?.summary === "string" ? raw.marketReach.summary : "Not available for this analysis.",
+    population5km: typeof raw?.marketReach?.population5km === "number" ? raw.marketReach.population5km : 0,
+    population10km: typeof raw?.marketReach?.population10km === "number" ? raw.marketReach.population10km : 0,
+    channels: Array.isArray(raw?.marketReach?.channels) ? raw.marketReach.channels : [],
+  };
+
+  const opportunityAnalysis: OpportunityCard[] = Array.isArray(raw?.opportunityAnalysis)
+    ? raw.opportunityAnalysis
+      .filter((o: any) => o && typeof o.title === "string")
+      .map((o: any) => ({ title: o.title, description: typeof o.description === "string" ? o.description : "" }))
+    : [];
+
+  const swot = {
+    strengths: Array.isArray(raw?.swot?.strengths) ? raw.swot.strengths : [],
+    weaknesses: Array.isArray(raw?.swot?.weaknesses) ? raw.swot.weaknesses : [],
+    opportunities: Array.isArray(raw?.swot?.opportunities) ? raw.swot.opportunities : [],
+    threats: Array.isArray(raw?.swot?.threats) ? raw.swot.threats : [],
+  };
+
+  const threatsIdentification: ThreatsData = {
+    summary: typeof raw?.threatsIdentification?.summary === "string" ? raw.threatsIdentification.summary : "Not available for this analysis.",
+    risks: Array.isArray(raw?.threatsIdentification?.risks)
+      ? raw.threatsIdentification.risks
+        .filter((r: any) => r && typeof r.name === "string")
+        .map((r: any) => ({ name: r.name, severity: coerceSeverity(r.severity) }))
+      : [],
+  };
+
+  const competitorMapping: CompetitorMappingData = {
+    summary: typeof raw?.competitorMapping?.summary === "string" ? raw.competitorMapping.summary : "Not available for this analysis.",
+    saturationLevel: coerceSeverity(raw?.competitorMapping?.saturationLevel),
+  };
+
+  const productMarketValue: ProductMarketValueData = {
+    summary: typeof raw?.productMarketValue?.summary === "string" ? raw.productMarketValue.summary : "Not available for this analysis.",
+    suggestedPrice: typeof raw?.productMarketValue?.suggestedPrice === "number" ? raw.productMarketValue.suggestedPrice : 0,
+    regionalAveragePrice: typeof raw?.productMarketValue?.regionalAveragePrice === "number" ? raw.productMarketValue.regionalAveragePrice : 0,
+    unit: typeof raw?.productMarketValue?.unit === "string" ? raw.productMarketValue.unit : "per unit",
+  };
+
   return {
-    marketReach: typeof raw?.marketReach === "string" ? raw.marketReach : "Not available for this analysis.",
-    opportunityAnalysis:
-      typeof raw?.opportunityAnalysis === "string" ? raw.opportunityAnalysis : "Not available for this analysis.",
-    swot: {
-      strengths: Array.isArray(raw?.swot?.strengths) ? raw.swot.strengths : [],
-      weaknesses: Array.isArray(raw?.swot?.weaknesses) ? raw.swot.weaknesses : [],
-      opportunities: Array.isArray(raw?.swot?.opportunities) ? raw.swot.opportunities : [],
-      threats: Array.isArray(raw?.swot?.threats) ? raw.swot.threats : [],
-    },
-    threatsIdentification:
-      typeof raw?.threatsIdentification === "string" ? raw.threatsIdentification : "Not available for this analysis.",
-    competitorMapping:
-      typeof raw?.competitorMapping === "string" ? raw.competitorMapping : "Not available for this analysis.",
-    productMarketValue:
-      typeof raw?.productMarketValue === "string" ? raw.productMarketValue : "Not available for this analysis.",
-    executiveSummary:
-      typeof raw?.executiveSummary === "string" ? raw.executiveSummary : "Summary not available.",
+    marketReach,
+    opportunityAnalysis,
+    swot,
+    threatsIdentification,
+    competitorMapping,
+    productMarketValue,
+    executiveSummary: typeof raw?.executiveSummary === "string" ? raw.executiveSummary : "Summary not available.",
     feasibilityScore:
       typeof raw?.feasibilityScore === "number" && raw.feasibilityScore >= 0 && raw.feasibilityScore <= 100
         ? raw.feasibilityScore
         : 50,
-    marketDemand: ["Low", "Medium", "High"].includes(raw?.marketDemand) ? raw.marketDemand : "Medium",
+    marketDemand: coerceSeverity(raw?.marketDemand),
     riskLevel: ["Low", "Medium", "High", "Low to Medium"].includes(raw?.riskLevel) ? raw.riskLevel : "Medium",
   };
 }
 
-export async function generateFeasibilityReport(
-  input: AdvisorInput
-): Promise<FeasibilityReport> {
+export async function generateFeasibilityReport(input: AdvisorInput): Promise<FeasibilityReport> {
   const userPrompt = buildUserPrompt(input);
 
   const completion = await groq.chat.completions.create({
@@ -135,8 +224,6 @@ export async function generateFeasibilityReport(
   try {
     return normalizeReport(JSON.parse(raw));
   } catch {
-    // Retry once with a stricter instruction if the model returns malformed JSON.
-    // Always validate before rendering — never trust raw LLM output.
     const retry = await groq.chat.completions.create({
       model: MODEL,
       messages: [
@@ -152,11 +239,8 @@ export async function generateFeasibilityReport(
 }
 
 // ---------------------------------------------------------------------------
-// Micro-Assistant — bounded, pre-defined quick-question feature on the
-// report page. Deliberately NOT a free-text chatbot: only these 3 fixed
-// questions are ever sent, so responses stay short, predictable, and safe
-// for a live demo (no open-ended input means no unpredictable/off-topic
-// model output in front of judges).
+// Micro-Assistant — bounded, pre-defined quick-question feature (unchanged
+// from before — not part of this rich-report upgrade).
 // ---------------------------------------------------------------------------
 export type QuickQuestionId = "raw_material" | "emi_default" | "licenses";
 
@@ -199,7 +283,7 @@ Answer this specific question directly, in the context of this business and loca
       { role: "user", content: userPrompt },
     ],
     temperature: 0.5,
-    max_tokens: 300, // keeps answers short by design — this is a quick-tip widget, not a chat
+    max_tokens: 300,
   });
 
   return completion.choices[0]?.message?.content?.trim() || "Sorry, couldn't generate an answer right now — please try again.";
