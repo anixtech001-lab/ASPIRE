@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useBusiness } from "@/lib/BusinessContext";
 import { QuickQuestionId } from "@/lib/ai";
 import { formatINR } from "@/lib/financialEngine";
-import { Download, ArrowLeft, Info, MapPin, Lightbulb, Users, DollarSign } from "lucide-react";
+import { Download, ArrowLeft, Info, MapPin, Lightbulb, Users, DollarSign, FileDown, Loader2 } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -31,6 +31,7 @@ const TABS = [
 export default function ReportPage() {
   const { businessDetails, feasibilityReport, financialPlan } = useBusiness();
   const [tab, setTab] = useState(0);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   if (!feasibilityReport || !financialPlan || !businessDetails) {
     return (
@@ -42,6 +43,44 @@ export default function ReportPage() {
       </div>
     );
   }
+
+  const handleDownloadPDF = async () => {
+    setPdfLoading(true);
+    try {
+      // Dynamic import keeps @react-pdf/renderer out of the initial bundle
+      // and — critically — ensures it only ever runs in the browser, never
+      // during server-side rendering, avoiding any SSR compatibility issues.
+      const [{ pdf }, { default: ReportPDFDocument }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("@/components/ReportPDFDocument"),
+      ]);
+
+      const blob = await pdf(
+        <ReportPDFDocument
+          businessDetails={businessDetails}
+          feasibilityReport={feasibilityReport}
+          financialPlan={financialPlan}
+        />
+      ).toBlob();
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ASPIRE_Report_${businessDetails.businessCategory}_${new Date().toISOString().slice(0, 10)}.pdf`.replace(
+        /\s+/g,
+        "_"
+      );
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("[report] PDF generation failed:", err);
+      alert("Couldn't generate the PDF right now. Please try again.");
+    } finally {
+      setPdfLoading(false);
+    }
+  };
 
   const handleDownload = () => {
     const lines: string[] = [];
@@ -129,9 +168,19 @@ export default function ReportPage() {
         <Link href="/dashboard" className="flex items-center gap-1 text-sm text-slate-400 hover:text-slate-600">
           <ArrowLeft className="h-4 w-4" /> Back
         </Link>
-        <button onClick={handleDownload} className="flex items-center gap-2 text-sm border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-50">
-          <Download className="h-4 w-4" /> Download Report
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={handleDownload} className="flex items-center gap-2 text-sm border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-50">
+            <Download className="h-4 w-4" /> Download (.txt)
+          </button>
+          <button
+            onClick={handleDownloadPDF}
+            disabled={pdfLoading}
+            className="flex items-center gap-2 text-sm bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-300 text-white rounded-lg px-3 py-1.5 transition-colors"
+          >
+            {pdfLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+            {pdfLoading ? "Generating…" : "Download Full Report (PDF)"}
+          </button>
+        </div>
       </div>
       <h1 className="text-xl font-semibold mt-3">AI Business Advisory Report</h1>
       <p className="text-sm text-slate-500 mb-3">

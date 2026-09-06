@@ -97,6 +97,66 @@ export function calculateEMISchedule(
 }
 
 // ---------------------------------------------------------------------------
+// Full quarter-by-quarter amortization row-set — used by the PDF export to
+// show a real repayment schedule table (not just the summary totals above).
+// Same reducing-balance math as calculateEMISchedule, just broken out per
+// quarter. Interest-only during moratorium, standard EMI after.
+// ---------------------------------------------------------------------------
+export interface QuarterlyAmortizationRow {
+  quarter: number;
+  isMoratorium: boolean;
+  openingBalance: number;
+  emi: number;
+  principalPaid: number;
+  interestPaid: number;
+  closingBalance: number;
+}
+
+export function calculateQuarterlyAmortization(
+  loanAmount: number,
+  annualRate: number,
+  tenureYears: number,
+  moratoriumMonths: number
+): QuarterlyAmortizationRow[] {
+  const quarterlyRate = annualRate / 4 / 100;
+  const totalQuarters = tenureYears * 4;
+  const moratoriumQuarters = Math.ceil(moratoriumMonths / 3);
+  const repaymentQuarters = totalQuarters - moratoriumQuarters;
+
+  const moratoriumEMI = loanAmount * quarterlyRate;
+  const postMoratoriumEMI =
+    repaymentQuarters > 0
+      ? (loanAmount * quarterlyRate * Math.pow(1 + quarterlyRate, repaymentQuarters)) /
+      (Math.pow(1 + quarterlyRate, repaymentQuarters) - 1)
+      : 0;
+
+  const rows: QuarterlyAmortizationRow[] = [];
+  let balance = loanAmount;
+
+  for (let q = 1; q <= totalQuarters; q++) {
+    const isMoratorium = q <= moratoriumQuarters;
+    const interestPaid = balance * quarterlyRate;
+    const emi = isMoratorium ? moratoriumEMI : postMoratoriumEMI;
+    const principalPaid = isMoratorium ? 0 : Math.max(emi - interestPaid, 0);
+    const closingBalance = isMoratorium ? balance : Math.max(balance - principalPaid, 0);
+
+    rows.push({
+      quarter: q,
+      isMoratorium,
+      openingBalance: Math.round(balance),
+      emi: Math.round(emi),
+      principalPaid: Math.round(principalPaid),
+      interestPaid: Math.round(interestPaid),
+      closingBalance: Math.round(closingBalance),
+    });
+
+    balance = closingBalance;
+  }
+
+  return rows;
+}
+
+// ---------------------------------------------------------------------------
 // Convenience wrapper — combines both functions above into one call, since
 // the UI almost always needs project details + EMI schedule together.
 // ---------------------------------------------------------------------------
