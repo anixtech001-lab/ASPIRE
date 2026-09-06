@@ -5,6 +5,7 @@ import { ProfileProvider } from "@/lib/ProfileContext";
 import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
 import AppShell from "@/components/AppShell";
+import MobileBottomNav from "@/components/MobileBottomNav";
 import GoogleTranslateDomGuard from "@/components/GoogleTranslateDomGuard";
 import "./globals.css";
 
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Sidebar />
               <TopBar />
               <AppShell>{children}</AppShell>
+              <MobileBottomNav />
             </BusinessProvider>
           </ProfileProvider>
         </SidebarProvider>

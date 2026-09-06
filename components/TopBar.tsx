@@ -57,10 +57,10 @@ export default function TopBar() {
 
     return (
         <header
-            className={`fixed top-0 left-0 right-0 h-14 bg-white border-b border-slate-200 z-40 flex items-center justify-between px-4 md:px-6 gap-4 transition-all duration-200 ${collapsed ? "md:left-16" : "md:left-64"
+            className={`fixed top-0 left-0 right-0 h-14 bg-white border-b border-slate-200 z-40 flex items-center justify-between px-3 md:px-6 gap-2 md:gap-4 transition-all duration-200 ${collapsed ? "md:left-16" : "md:left-64"
                 }`}
         >
-            <div className="relative flex-1 max-w-md">
+            <div className="relative flex-1 max-w-[140px] sm:max-w-xs md:max-w-md">
                 <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                     ref={inputRef}
@@ -71,15 +71,15 @@ export default function TopBar() {
                     }}
                     onFocus={() => setOpen(true)}
                     onBlur={() => setTimeout(() => setOpen(false), 150)} // allow click on result before closing
-                    placeholder="Search anything…"
-                    className="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-14 py-2 outline-none focus:border-emerald-400 focus:bg-white transition-colors"
+                    placeholder="Search…"
+                    className="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 sm:pr-14 py-2 outline-none focus:border-emerald-400 focus:bg-white transition-colors"
                 />
                 <kbd className="hidden sm:block absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 border border-slate-200 rounded px-1.5 py-0.5">
                     Ctrl K
                 </kbd>
 
                 {open && results.length > 0 && (
-                    <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-50">
+                    <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-50 min-w-[180px]">
                         {results.map((r) => (
                             <button
                                 key={r.href}
@@ -93,13 +93,13 @@ export default function TopBar() {
                 )}
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4 shrink-0">
                 <GoogleTranslate />
-                <div className="w-px h-5 bg-slate-200" />
-                <button className="text-slate-400 hover:text-slate-600 transition-colors">
+                <div className="hidden sm:block w-px h-5 bg-slate-200" />
+                <button className="text-slate-400 hover:text-slate-600 transition-colors shrink-0">
                     <Bell className="h-4 w-4" />
                 </button>
-                <Link href="/profile" title="Profile & Settings">
+                <Link href="/profile" title="Profile & Settings" className="shrink-0">
                     {profile.firstName ? (
                         <div className="h-8 w-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-medium hover:bg-emerald-200 transition-colors">
                             {(profile.firstName[0] + (profile.lastName?.[0] ?? "")).toUpperCase()}
