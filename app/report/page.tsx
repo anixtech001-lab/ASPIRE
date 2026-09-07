@@ -263,18 +263,23 @@ function MarketOpportunityTab({ report }: { report: Report }) {
         <p className="text-sm text-slate-600 mb-4">{report.marketReach.summary}</p>
 
         {(report.marketReach.population5km > 0 || report.marketReach.population10km > 0) && (
-          <div className="h-40 mb-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={reachData} layout="vertical" margin={{ left: 10 }}>
-                <XAxis type="number" hide />
-                <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                <Tooltip formatter={(v) => Number(v).toLocaleString("en-IN")} />
-                <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={28}>
-                  <Cell fill={BRAND_GREEN} />
-                  <Cell fill={BRAND_MOSS} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="mb-4">
+            <div className="mb-1.5">
+              <ModelEstimateBadge />
+            </div>
+            <div className="h-40">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={reachData} layout="vertical" margin={{ left: 10 }}>
+                  <XAxis type="number" hide />
+                  <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <Tooltip formatter={(v) => Number(v).toLocaleString("en-IN")} />
+                  <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={28}>
+                    <Cell fill={BRAND_GREEN} />
+                    <Cell fill={BRAND_MOSS} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         )}
 
@@ -370,7 +375,10 @@ function PricingCompetitorsTab({ report }: { report: Report }) {
             </div>
           ))}
         </div>
-        <p className="text-xs text-slate-400 mt-2">Market Saturation Level: {report.competitorMapping.saturationLevel}</p>
+        <div className="flex items-center justify-between mt-2">
+          <p className="text-xs text-slate-400">Market Saturation Level: {report.competitorMapping.saturationLevel}</p>
+          <ModelEstimateBadge />
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 p-6">
@@ -379,18 +387,23 @@ function PricingCompetitorsTab({ report }: { report: Report }) {
         </h3>
         <p className="text-sm text-slate-600 mb-4">{report.productMarketValue.summary}</p>
         {report.productMarketValue.suggestedPrice > 0 && (
-          <div className="h-32">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={priceData}>
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis hide />
-                <Tooltip formatter={(v) => `₹${v} ${report.productMarketValue.unit}`} />
-                <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={40}>
-                  <Cell fill={BRAND_GREEN} />
-                  <Cell fill={BRAND_MOSS} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div>
+            <div className="mb-1.5">
+              <ModelEstimateBadge />
+            </div>
+            <div className="h-32">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={priceData}>
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <YAxis hide />
+                  <Tooltip formatter={(v) => `₹${v} ${report.productMarketValue.unit}`} />
+                  <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={40}>
+                    <Cell fill={BRAND_GREEN} />
+                    <Cell fill={BRAND_MOSS} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         )}
       </div>
@@ -439,6 +452,14 @@ function MiniStat({ label, value }: { label: string; value: string }) {
       <div className="text-xs text-slate-400 mb-1">{label}</div>
       <div className="text-sm font-semibold">{value}</div>
     </div>
+  );
+}
+
+function ModelEstimateBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] text-amber-700 bg-amber-50 rounded-full px-2 py-0.5">
+      ⚠ Model Estimate — Not Verified
+    </span>
   );
 }
 
