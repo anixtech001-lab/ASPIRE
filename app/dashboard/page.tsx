@@ -66,7 +66,7 @@ export default function DashboardPage() {
             />
             <StatCard
               icon={<TrendingUp className="h-5 w-5 text-emerald-600" />}
-              label="Loan Eligibility"
+              label="Indicative Financing"
               value={formatINR(financialPlan!.details.loanAmount)}
               sub={financialPlan!.details.scheme?.name ?? "Review Required"}
             />

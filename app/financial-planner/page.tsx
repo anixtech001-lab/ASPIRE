@@ -77,7 +77,8 @@ export default function FinancialPlannerPage() {
     <div className="p-6 md:p-8 max-w-6xl mx-auto">
       <h1 className="text-2xl font-semibold mb-1">Financial Planner</h1>
       <p className="text-sm text-slate-500 mb-6">
-        Calculate your loan eligibility, scheme match, and monthly cash flow
+        Calculate indicative financing, scheme match, and monthly cash flow — final sanction
+        depends on your lender&apos;s assessment
       </p>
 
       {/* ---- Loan / Scheme Calculator ---- */}
@@ -106,7 +107,7 @@ export default function FinancialPlannerPage() {
           <>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
               <MiniStat label="Project Cost" value={formatINR(plan.details.projectCost)} />
-              <MiniStat label="Loan Amount" value={formatINR(plan.details.loanAmount)} />
+              <MiniStat label="Indicative Financing" value={formatINR(plan.details.loanAmount)} />
               <MiniStat
                 label="Scheme"
                 value={plan.details.scheme?.name ?? "Exceeds Limits"}
@@ -125,14 +126,21 @@ export default function FinancialPlannerPage() {
                 automatically.
               </div>
             ) : (
-              <div className="bg-emerald-50 text-emerald-800 text-sm rounded-lg p-4 mb-5">
-                Your project cost of <strong>{formatINR(plan.details.projectCost)}</strong> falls
-                under the <strong>{plan.details.scheme!.name}</strong> because it is{" "}
-                {plan.details.scheme!.name === "Micro Finance Scheme"
-                  ? "up to ₹1.40 lakh"
-                  : "between ₹1.40 lakh and ₹50 lakh"}
-                .
-              </div>
+              <>
+                <div className="bg-emerald-50 text-emerald-800 text-sm rounded-lg p-4 mb-2">
+                  Your project cost of <strong>{formatINR(plan.details.projectCost)}</strong> falls
+                  under the <strong>{plan.details.scheme!.name}</strong> because it is{" "}
+                  {plan.details.scheme!.name === "Micro Finance Scheme"
+                    ? "up to ₹1.40 lakh"
+                    : "between ₹1.40 lakh and ₹50 lakh"}
+                  .
+                </div>
+                <p className="text-xs text-slate-400 mb-5">
+                  This is an <strong>indicative</strong> structure based on the scheme assumptions
+                  above — not a loan approval. Final sanction is subject to applicable scheme
+                  rules and your lending/channelizing agency&apos;s own assessment.
+                </p>
+              </>
             )}
 
             {plan.emiSchedule && (

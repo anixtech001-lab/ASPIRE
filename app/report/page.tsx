@@ -139,7 +139,7 @@ export default function ReportPage() {
       push(`Project cost of ${formatINR(financialPlan.details.projectCost)} exceeds standard scheme limits.`);
     } else {
       push(`Project Cost: ${formatINR(financialPlan.details.projectCost)}`);
-      push(`Loan Amount: ${formatINR(financialPlan.details.loanAmount)}`);
+      push(`Indicative Financing: ${formatINR(financialPlan.details.loanAmount)}`);
       push(`Scheme: ${financialPlan.details.scheme!.name}`);
       push(`Interest Rate: ${financialPlan.details.scheme!.interestRate}% p.a.`);
       push(`Tenure: ${financialPlan.details.scheme!.tenureYears} years`);
@@ -219,7 +219,7 @@ export default function ReportPage() {
             <GlanceRow label="Business Type" value={businessDetails.businessCategory} />
             <GlanceRow label="Location" value={`${businessDetails.location}, ${businessDetails.state}`} />
             <GlanceRow label="Project Cost" value={formatINR(financialPlan.details.projectCost)} />
-            <GlanceRow label="Loan Amount" value={formatINR(financialPlan.details.loanAmount)} />
+            <GlanceRow label="Indicative Financing" value={formatINR(financialPlan.details.loanAmount)} />
             <GlanceRow label="Scheme" value={financialPlan.details.scheme?.name ?? "Exceeds standard limits"} />
             <GlanceRow label="Risk Level" value={feasibilityReport.riskLevel} last />
           </div>
@@ -424,7 +424,7 @@ function FinancialTab({ plan }: { plan: Plan }) {
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-5">
             <MiniStat label="Project Cost" value={formatINR(plan.details.projectCost)} />
-            <MiniStat label="Loan Amount" value={formatINR(plan.details.loanAmount)} />
+            <MiniStat label="Indicative Financing" value={formatINR(plan.details.loanAmount)} />
             <MiniStat label="Scheme" value={plan.details.scheme!.name} />
             <MiniStat label="Interest Rate" value={`${plan.details.scheme!.interestRate}% p.a.`} />
             <MiniStat label="Tenure" value={`${plan.details.scheme!.tenureYears} years`} />
