@@ -288,3 +288,131 @@ Answer this specific question directly, in the context of this business and loca
 
   return completion.choices[0]?.message?.content?.trim() || "Sorry, couldn't generate an answer right now — please try again.";
 }
+
+// ---------------------------------------------------------------------------
+// Compare Ideas — ranks multiple saved reports and recommends the best one.
+// IMPORTANT: the LLM only produces the qualitative ranking/reasoning below.
+// It never sees or recalculates money figures — projectCost/loanAmount here
+// are passed in purely as context for its reasoning; the actual numbers
+// displayed anywhere in the UI always come straight from financialEngine.ts.
+// ---------------------------------------------------------------------------
+export interface CompareIdeaInput {
+  id: string;
+  businessCategory: string;
+  location: string;
+  projectCost: number;
+  loanAmount: number;
+  scheme: string;
+  marketSaturation: string;
+  feasibilityScore: number;
+  swotSummary: string;
+}
+
+export interface CompareRankingItem {
+  ideaId: string;
+  rank: number;
+  viabilityScore: number;
+  reasoning: string;
+}
+
+export interface CompareResult {
+  ranking: CompareRankingItem[];
+  recommendedIdeaId: string;
+  recommendationSummary: string;
+}
+
+const COMPARE_SYSTEM_PROMPT = `You are a business consultant AI. Compare business ideas that
+the same user is considering, and recommend the single best one. For each idea, give a
+viability score out of 100 based on: market opportunity, financial feasibility, risk level,
+and local demand — using the data given, not invented figures.
+
+Respond ONLY with valid JSON, no markdown fences, no commentary, matching exactly:
+
+{
+  "ranking": [
+    { "ideaId": "string", "rank": number, "viabilityScore": number, "reasoning": "short 1-2 sentence explanation" }
+  ],
+  "recommendedIdeaId": "string",
+  "recommendationSummary": "2-3 sentence explanation of why this is the overall best choice, referencing specific factors"
+}`;
+
+function normalizeCompareResult(raw: any, ideaIds: string[]): CompareResult {
+  const validIds = new Set(ideaIds);
+
+  let ranking: CompareRankingItem[] = Array.isArray(raw?.ranking)
+    ? raw.ranking
+      .filter((r: any) => r && validIds.has(r.ideaId))
+      .map((r: any) => ({
+        ideaId: r.ideaId,
+        rank: typeof r.rank === "number" ? r.rank : 0,
+        viabilityScore: typeof r.viabilityScore === "number" ? r.viabilityScore : 50,
+        reasoning: typeof r.reasoning === "string" ? r.reasoning : "",
+      }))
+    : [];
+
+  // Fill in any idea the model dropped, so every idea always appears.
+  const rankedIds = new Set(ranking.map((r) => r.ideaId));
+  ideaIds.forEach((id) => {
+    if (!rankedIds.has(id)) {
+      ranking.push({ ideaId: id, rank: ranking.length + 1, viabilityScore: 50, reasoning: "No specific reasoning generated." });
+    }
+  });
+
+  ranking.sort((a, b) => a.rank - b.rank);
+
+  const recommendedIdeaId = validIds.has(raw?.recommendedIdeaId) ? raw.recommendedIdeaId : ranking[0]?.ideaId ?? ideaIds[0];
+
+  return {
+    ranking,
+    recommendedIdeaId,
+    recommendationSummary:
+      typeof raw?.recommendationSummary === "string" ? raw.recommendationSummary : "Recommendation summary not available.",
+  };
+}
+
+export async function compareIdeas(ideas: CompareIdeaInput[]): Promise<CompareResult> {
+  const ideaIds = ideas.map((i) => i.id);
+
+  const userPrompt = `Ideas:\n${ideas
+    .map(
+      (idea, i) => `${i + 1}. ID: ${idea.id}
+   Business: ${idea.businessCategory} in ${idea.location}
+   Project Cost: ₹${idea.projectCost}
+   Loan Amount: ₹${idea.loanAmount}
+   Matched Scheme: ${idea.scheme}
+   Market Saturation: ${idea.marketSaturation}
+   Feasibility Score: ${idea.feasibilityScore}/100
+   Key SWOT points: ${idea.swotSummary}`
+    )
+    .join("\n\n")}
+
+Rank these ideas and recommend the best one. Generate the JSON now.`;
+
+  const completion = await groq.chat.completions.create({
+    model: MODEL,
+    messages: [
+      { role: "system", content: COMPARE_SYSTEM_PROMPT },
+      { role: "user", content: userPrompt },
+    ],
+    temperature: 0.4,
+    response_format: { type: "json_object" },
+  });
+
+  const raw = completion.choices[0]?.message?.content ?? "{}";
+
+  try {
+    return normalizeCompareResult(JSON.parse(raw), ideaIds);
+  } catch {
+    const retry = await groq.chat.completions.create({
+      model: MODEL,
+      messages: [
+        { role: "system", content: COMPARE_SYSTEM_PROMPT + "\n\nReturn ONLY valid JSON. No exceptions." },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+    });
+    const retryRaw = retry.choices[0]?.message?.content ?? "{}";
+    return normalizeCompareResult(JSON.parse(retryRaw), ideaIds);
+  }
+}
