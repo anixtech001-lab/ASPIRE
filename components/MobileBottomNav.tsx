@@ -27,6 +27,8 @@ const ITEMS = [
 export default function MobileBottomNav() {
     const pathname = usePathname();
 
+    if (pathname === "/") return null; // landing page has no app chrome
+
     return (
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0E2A1E] border-t border-white/10 z-40">
             <div className="flex overflow-x-auto no-scrollbar">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Bell, Search, UserCircle } from "lucide-react";
 import { useSidebar } from "@/lib/SidebarContext";
@@ -20,6 +20,7 @@ const SEARCHABLE_PAGES = [
 ];
 
 export default function TopBar() {
+    const pathname = usePathname();
     const { collapsed } = useSidebar();
     const { profile } = useProfile();
     const router = useRouter();
@@ -53,6 +54,8 @@ export default function TopBar() {
         setQuery("");
         setOpen(false);
     };
+
+    if (pathname === "/") return null; // landing page has no app chrome
 
     return (
         <header

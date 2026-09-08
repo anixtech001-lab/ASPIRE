@@ -35,6 +35,8 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { collapsed, toggle } = useSidebar();
 
+  if (pathname === "/") return null; // landing page has no app chrome
+
   return (
     <aside
       className={`hidden md:flex md:flex-col md:fixed md:inset-y-0 bg-[#0E2A1E] text-white transition-all duration-200 z-30 ${collapsed ? "md:w-16" : "md:w-64"
