@@ -164,6 +164,17 @@ export default function FinancialPlannerPage() {
       </div>
 
       {/* ---- Cashbook / P&L ---- */}
+      {plan && (
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-4 text-sm text-blue-800 flex items-start gap-2">
+          <Info className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>
+            Your calculated Project Cost is <strong>{formatINR(plan.details.projectCost)}</strong> — use
+            this as your target when breaking down the investment items below. We don&apos;t
+            auto-fill individual line items (land, equipment, etc.) since we don&apos;t have
+            real data on your specific costs — only you know those numbers accurately.
+          </span>
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <LineItemCard
           title="Investment Calculator"

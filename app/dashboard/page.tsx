@@ -1,7 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useBusiness } from "@/lib/BusinessContext";
+import { getSavedReports, SavedReport } from "@/lib/reportsStorage";
 import {
   Gauge,
   Wallet,
@@ -13,13 +16,34 @@ import {
   Landmark,
   TrendingUp as MarketIcon,
   MapPin,
+  FileText,
 } from "lucide-react";
 import { formatINR } from "@/lib/financialEngine";
 
+function scoreBadge(score: number) {
+  if (score >= 70) return { label: "Good Potential", color: "text-emerald-600 bg-emerald-50" };
+  if (score >= 40) return { label: "Moderate Potential", color: "text-amber-600 bg-amber-50" };
+  return { label: "Needs Review", color: "text-red-600 bg-red-50" };
+}
+
 export default function DashboardPage() {
-  const { businessDetails, feasibilityReport, financialPlan } = useBusiness();
+  const router = useRouter();
+  const { businessDetails, feasibilityReport, financialPlan, setBusinessDetails, setFeasibilityReport, setFinancialPlan } = useBusiness();
+  const [recentReports, setRecentReports] = useState<SavedReport[]>([]);
+
+  useEffect(() => {
+    setRecentReports(getSavedReports().slice(0, 3));
+  }, []);
 
   const hasReport = !!feasibilityReport && !!financialPlan;
+  const hasAnyData = hasReport || recentReports.length > 0;
+
+  const openReport = (r: SavedReport) => {
+    setBusinessDetails(r.businessDetails);
+    setFeasibilityReport(r.feasibilityReport);
+    setFinancialPlan(r.financialPlan);
+    router.push("/report");
+  };
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto">
@@ -40,118 +64,128 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {!hasReport ? (
+      {!hasAnyData ? (
         <EmptyState />
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <StatCard
-              icon={<Gauge className="h-5 w-5 text-emerald-600" />}
-              label="Feasibility Score"
-              value={`${feasibilityReport!.feasibilityScore} / 100`}
-              sub={
-                feasibilityReport!.feasibilityScore >= 70
-                  ? "Good Potential"
-                  : feasibilityReport!.feasibilityScore >= 40
-                    ? "Moderate Potential"
-                    : "Needs Review"
-              }
-              subColor="text-emerald-600"
-            />
-            <StatCard
-              icon={<Wallet className="h-5 w-5 text-emerald-600" />}
-              label="Project Cost"
-              value={formatINR(financialPlan!.details.projectCost)}
-              sub="Total Required"
-            />
-            <StatCard
-              icon={<TrendingUp className="h-5 w-5 text-emerald-600" />}
-              label="Indicative Financing"
-              value={formatINR(financialPlan!.details.loanAmount)}
-              sub={financialPlan!.details.scheme?.name ?? "Review Required"}
-            />
-            <StatCard
-              icon={<CalendarClock className="h-5 w-5 text-emerald-600" />}
-              label="Quarterly EMI"
-              value={
-                financialPlan!.emiSchedule
-                  ? formatINR(financialPlan!.emiSchedule.quarterlyEMI)
-                  : "—"
-              }
-              sub={
-                financialPlan!.details.scheme
-                  ? `${financialPlan!.details.scheme.moratoriumMonths}mo moratorium`
-                  : "N/A"
-              }
-            />
-          </div>
+          {hasReport && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <StatCard
+                  icon={<Gauge className="h-5 w-5 text-emerald-600" />}
+                  label="Feasibility Score"
+                  value={`${feasibilityReport!.feasibilityScore} / 100`}
+                  sub={scoreBadge(feasibilityReport!.feasibilityScore).label}
+                  subColor="text-emerald-600"
+                />
+                <StatCard
+                  icon={<Wallet className="h-5 w-5 text-emerald-600" />}
+                  label="Project Cost"
+                  value={formatINR(financialPlan!.details.projectCost)}
+                  sub="Total Required"
+                />
+                <StatCard
+                  icon={<TrendingUp className="h-5 w-5 text-emerald-600" />}
+                  label="Indicative Financing"
+                  value={formatINR(financialPlan!.details.loanAmount)}
+                  sub={financialPlan!.details.scheme?.name ?? "Review Required"}
+                />
+                <StatCard
+                  icon={<CalendarClock className="h-5 w-5 text-emerald-600" />}
+                  label="Quarterly EMI"
+                  value={financialPlan!.emiSchedule ? formatINR(financialPlan!.emiSchedule.quarterlyEMI) : "—"}
+                  sub={financialPlan!.details.scheme ? `${financialPlan!.details.scheme.moratoriumMonths}mo moratorium` : "N/A"}
+                />
+              </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-            <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6">
-              <h2 className="font-semibold mb-4">Business Feasibility Overview</h2>
-              <p className="text-sm text-slate-500 mb-4">
-                Based on your location, capital and business type
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="rounded-xl bg-slate-50 p-4">
-                  <div className="text-xs font-medium text-slate-500 mb-2">Top Recommendation</div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-semibold">{businessDetails?.businessCategory}</span>
-                    <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
-                      Recommended
-                    </span>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+                <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6">
+                  <h2 className="font-semibold mb-4">Business Feasibility Overview</h2>
+                  <p className="text-sm text-slate-500 mb-4">Based on your location, capital and business type</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="rounded-xl bg-slate-50 p-4">
+                      <div className="text-xs font-medium text-slate-500 mb-2">Top Recommendation</div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold">{businessDetails?.businessCategory}</span>
+                        <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">Recommended</span>
+                      </div>
+                      <p className="text-xs text-slate-500 mb-3">{feasibilityReport!.executiveSummary}</p>
+                      <Link href="/report" className="text-xs font-medium text-emerald-600 flex items-center gap-1 hover:underline">
+                        View Full Report <ArrowRight className="h-3 w-3" />
+                      </Link>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 p-4">
+                      <div className="text-xs font-medium text-slate-500 mb-2">Key Strengths</div>
+                      <ul className="space-y-1.5">
+                        {feasibilityReport!.swot.strengths.slice(0, 4).map((s, i) => (
+                          <li key={i} className="text-xs text-slate-600 flex items-start gap-1.5">
+                            <span className="text-emerald-500 mt-0.5">✓</span> {s}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-500 mb-3">{feasibilityReport!.executiveSummary}</p>
-                  <Link
-                    href="/report"
-                    className="text-xs font-medium text-emerald-600 flex items-center gap-1 hover:underline"
-                  >
-                    View Full Report <ArrowRight className="h-3 w-3" />
-                  </Link>
                 </div>
-                <div className="rounded-xl bg-slate-50 p-4">
-                  <div className="text-xs font-medium text-slate-500 mb-2">Key Strengths</div>
-                  <ul className="space-y-1.5">
-                    {feasibilityReport!.swot.strengths.slice(0, 4).map((s, i) => (
-                      <li key={i} className="text-xs text-slate-600 flex items-start gap-1.5">
-                        <span className="text-emerald-500 mt-0.5">✓</span> {s}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
 
+                <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                  <h2 className="font-semibold mb-4">Quick Actions</h2>
+                  <div className="space-y-3">
+                    <QuickAction icon={<MessageSquareText className="h-4 w-4" />} title="Get Business Advice" sub="Find best business for you" href="/advisor" />
+                    <QuickAction icon={<Calculator className="h-4 w-4" />} title="Plan Finances" sub="Calculate costs & profits" href="/financial-planner" />
+                    <QuickAction icon={<Landmark className="h-4 w-4" />} title="Explore Schemes" sub="Government support for you" href="/schemes" />
+                    <QuickAction icon={<MarketIcon className="h-4 w-4" />} title="Market Insights" sub="Understand your market" href="/market-insights" />
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {!hasReport && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
+              <h2 className="font-semibold mb-1">Start a New Business Analysis</h2>
+              <p className="text-sm text-slate-500 mb-4">Get AI-powered insights and financial guidance for your business idea</p>
+              <Link
+                href="/advisor"
+                className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"
+              >
+                Start Business Analysis <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          )}
+
+          {recentReports.length > 0 && (
             <div className="bg-white rounded-2xl border border-slate-200 p-6">
-              <h2 className="font-semibold mb-4">Quick Actions</h2>
-              <div className="space-y-3">
-                <QuickAction
-                  icon={<MessageSquareText className="h-4 w-4" />}
-                  title="Get Business Advice"
-                  sub="Find best business for you"
-                  href="/advisor"
-                />
-                <QuickAction
-                  icon={<Calculator className="h-4 w-4" />}
-                  title="Plan Finances"
-                  sub="Calculate costs & profits"
-                  href="/financial-planner"
-                />
-                <QuickAction
-                  icon={<Landmark className="h-4 w-4" />}
-                  title="Explore Schemes"
-                  sub="Government support for you"
-                  href="/schemes"
-                />
-                <QuickAction
-                  icon={<MarketIcon className="h-4 w-4" />}
-                  title="Market Insights"
-                  sub="Understand your market"
-                  href="/market-insights"
-                />
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold">Recent Analyses</h2>
+                <Link href="/reports" className="text-xs font-medium text-emerald-600 hover:underline">
+                  View all →
+                </Link>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {recentReports.map((r) => {
+                  const badge = scoreBadge(r.feasibilityReport.feasibilityScore);
+                  return (
+                    <button
+                      key={r.id}
+                      onClick={() => openReport(r)}
+                      className="text-left rounded-xl border border-slate-200 p-4 hover:border-emerald-300 hover:-translate-y-0.5 transition-all"
+                    >
+                      <div className="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
+                        <FileText className="h-4 w-4" />
+                      </div>
+                      <div className="font-medium text-sm mb-0.5">{r.businessDetails.businessCategory}</div>
+                      <div className="text-xs text-slate-400 mb-3">
+                        {r.businessDetails.location}, {r.businessDetails.state}
+                      </div>
+                      <span className={`text-xs font-semibold rounded-full px-2 py-1 ${badge.color}`}>
+                        {r.feasibilityReport.feasibilityScore}/100 · {badge.label}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
-          </div>
+          )}
         </>
       )}
     </div>
@@ -216,13 +250,8 @@ function QuickAction({
   href: string;
 }) {
   return (
-    <Link
-      href={href}
-      className="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-slate-50 transition-colors"
-    >
-      <div className="h-9 w-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-        {icon}
-      </div>
+    <Link href={href} className="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-slate-50 transition-colors">
+      <div className="h-9 w-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">{icon}</div>
       <div>
         <div className="text-sm font-medium">{title}</div>
         <div className="text-xs text-slate-500">{sub}</div>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useProfile, UserProfile, EMPTY_PROFILE } from "@/lib/ProfileContext";
-import { Check } from "lucide-react";
+import { useBusiness } from "@/lib/BusinessContext";
+import { Check, Info } from "lucide-react";
 
 const EDUCATION_OPTIONS = [
     "Prefer not to say",
@@ -16,15 +17,28 @@ const EDUCATION_OPTIONS = [
 
 export default function ProfilePage() {
     const { profile, setProfile, hydrated } = useProfile();
+    const { businessDetails } = useBusiness();
     const [form, setForm] = useState<UserProfile>(EMPTY_PROFILE);
     const [saved, setSaved] = useState(false);
+    const locationEditedRef = useRef(false);
 
     // Sync local form state once the saved profile has loaded from storage
     useEffect(() => {
         if (hydrated) setForm(profile);
     }, [hydrated, profile]);
 
+    // Auto-fill location from the most recent Business Advisor analysis —
+    // only if the user hasn't set their own profile location already, and
+    // only if they haven't just typed something different themselves. This
+    // is a default suggestion, never overwrites what the user has entered.
+    useEffect(() => {
+        if (hydrated && !profile.location && !locationEditedRef.current && businessDetails?.location) {
+            setForm((f) => ({ ...f, location: `${businessDetails.location}, ${businessDetails.state}` }));
+        }
+    }, [hydrated, profile.location, businessDetails]);
+
     const update = (field: keyof UserProfile, value: string) => {
+        if (field === "location") locationEditedRef.current = true;
         setForm((f) => ({ ...f, [field]: value }));
         setSaved(false);
     };
@@ -55,6 +69,11 @@ export default function ProfilePage() {
 
                 <Field label="Location">
                     <input className="input" value={form.location} onChange={(e) => update("location", e.target.value)} placeholder="e.g. Bachhrawan, Uttar Pradesh" />
+                    {businessDetails?.location && form.location === `${businessDetails.location}, ${businessDetails.state}` && (
+                        <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1">
+                            <Info className="h-3 w-3" /> Pre-filled from your Business Advisor plan
+                        </p>
+                    )}
                 </Field>
 
                 <Field label="Business Name">

@@ -10,7 +10,6 @@ import {
   Landmark,
   TrendingUp,
   FileText,
-  BookmarkCheck,
   UserCircle,
   HelpCircle,
   Sprout,
@@ -25,7 +24,6 @@ const NAV_ITEMS = [
   { href: "/schemes", label: "Schemes & Support", icon: Landmark },
   { href: "/market-insights", label: "Market Insights", icon: TrendingUp },
   { href: "/reports", label: "My Reports", icon: FileText },
-  { href: "/saved-ideas", label: "Saved Ideas", icon: BookmarkCheck },
 ];
 
 const FOOTER_ITEMS = [

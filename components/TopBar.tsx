@@ -15,7 +15,6 @@ const SEARCHABLE_PAGES = [
     { href: "/schemes", label: "Schemes & Support" },
     { href: "/market-insights", label: "Market Insights" },
     { href: "/reports", label: "My Reports" },
-    { href: "/saved-ideas", label: "Saved Ideas" },
     { href: "/profile", label: "Profile & Settings" },
     { href: "/help", label: "Help & Resources" },
 ];
