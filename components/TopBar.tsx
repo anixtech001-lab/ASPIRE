@@ -3,10 +3,11 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { Bell, Search, UserCircle } from "lucide-react";
+import { Bell, Search, UserCircle, Languages } from "lucide-react";
 import { useSidebar } from "@/lib/SidebarContext";
 import { useProfile } from "@/lib/ProfileContext";
-import GoogleTranslate from "./GoogleTranslate";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { LANGUAGES } from "@/lib/i18n/translations";
 
 const SEARCHABLE_PAGES = [
     { href: "/dashboard", label: "Dashboard" },
@@ -23,6 +24,7 @@ export default function TopBar() {
     const pathname = usePathname();
     const { collapsed } = useSidebar();
     const { profile } = useProfile();
+    const { lang, setLang, t } = useLanguage();
     const router = useRouter();
     const inputRef = useRef<HTMLInputElement>(null);
     const [query, setQuery] = useState("");
@@ -32,7 +34,6 @@ export default function TopBar() {
         ? SEARCHABLE_PAGES.filter((p) => p.label.toLowerCase().includes(query.trim().toLowerCase()))
         : [];
 
-    // Ctrl/Cmd+K focuses the search box, matching the shortcut hint shown
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -59,10 +60,10 @@ export default function TopBar() {
 
     return (
         <header
-            className={`fixed top-0 left-0 right-0 h-14 bg-white border-b border-slate-200 z-40 flex items-center justify-between px-3 md:px-6 gap-2 md:gap-4 transition-all duration-200 ${collapsed ? "md:left-16" : "md:left-64"
+            className={`fixed top-0 left-0 right-0 h-14 bg-white border-b border-slate-200 z-40 flex items-center justify-between px-4 md:px-6 gap-4 transition-all duration-200 ${collapsed ? "md:left-16" : "md:left-64"
                 }`}
         >
-            <div className="relative flex-1 max-w-[140px] sm:max-w-xs md:max-w-md">
+            <div className="relative flex-1 max-w-md">
                 <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                     ref={inputRef}
@@ -72,16 +73,16 @@ export default function TopBar() {
                         setOpen(true);
                     }}
                     onFocus={() => setOpen(true)}
-                    onBlur={() => setTimeout(() => setOpen(false), 150)} // allow click on result before closing
-                    placeholder="Search…"
-                    className="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 sm:pr-14 py-2 outline-none focus:border-emerald-400 focus:bg-white transition-colors"
+                    onBlur={() => setTimeout(() => setOpen(false), 150)}
+                    placeholder={t("topbar.search")}
+                    className="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-14 py-2 outline-none focus:border-emerald-400 focus:bg-white transition-colors"
                 />
                 <kbd className="hidden sm:block absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 border border-slate-200 rounded px-1.5 py-0.5">
                     Ctrl K
                 </kbd>
 
                 {open && results.length > 0 && (
-                    <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-50 min-w-[180px]">
+                    <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-50">
                         {results.map((r) => (
                             <button
                                 key={r.href}
@@ -95,13 +96,27 @@ export default function TopBar() {
                 )}
             </div>
 
-            <div className="flex items-center gap-2 md:gap-4 shrink-0">
-                <GoogleTranslate />
-                <div className="hidden sm:block w-px h-5 bg-slate-200" />
-                <button className="text-slate-400 hover:text-slate-600 transition-colors shrink-0">
+            <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1.5">
+                    <Languages className="h-4 w-4 text-slate-400 shrink-0" />
+                    <select
+                        value={lang}
+                        onChange={(e) => setLang(e.target.value as "en" | "hi")}
+                        className="text-xs border border-slate-200 rounded-md px-2 py-1 text-slate-600 bg-white outline-none cursor-pointer"
+                        aria-label="Select language"
+                    >
+                        {LANGUAGES.map((l) => (
+                            <option key={l.code} value={l.code}>
+                                {l.label}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <div className="w-px h-5 bg-slate-200" />
+                <button className="text-slate-400 hover:text-slate-600 transition-colors">
                     <Bell className="h-4 w-4" />
                 </button>
-                <Link href="/profile" title="Profile & Settings" className="shrink-0">
+                <Link href="/profile" title="Profile & Settings">
                     {profile.firstName ? (
                         <div className="h-8 w-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-medium hover:bg-emerald-200 transition-colors">
                             {(profile.firstName[0] + (profile.lastName?.[0] ?? "")).toUpperCase()}
