@@ -1,6 +1,6 @@
 // Bhashini integration — National Language Translation Mission API.
 //
-// SETUP NEEDED (Ansh, do this before Day-2 polish):
+// SETUP NEEDED (Ansh):
 // 1. Register at https://bhashini.gov.in/ubhasini/en/signup and get a User ID + Ulca API Key.
 // 2. Add to .env.local:
 //      BHASHINI_USER_ID=your_user_id
@@ -8,81 +8,123 @@
 // 3. Bhashini's actual pipeline requires a two-step call:
 //      a) POST to the "pipeline config" endpoint to get task-specific service IDs
 //      b) POST to the "compute" endpoint with those service IDs to do the actual
-//         translation / ASR / TTS
-//    Their service IDs change per language pair, so step (a) should be cached,
-//    not called on every request.
+//         translation
+//    Their service IDs change per language pair, so step (a) should be cached
+//    in production (this file re-fetches it per call for MVP simplicity — a
+//    small in-memory cache would be a good next optimization once this is
+//    getting real traffic, since the pipeline config rarely changes for a
+//    given language pair).
 //
-// For the hackathon demo, this file ships with a STUBBED fallback so the app
-// works end-to-end even before Bhashini credentials are wired in — it returns
-// the original text untouched, so the rest of the UI never breaks waiting on
-// a live translation call.
+// Until BHASHINI_USER_ID / BHASHINI_API_KEY are set, every function below
+// returns the original text untouched — the app works end-to-end without
+// credentials, it just shows English everywhere.
+//
+// IMPORTANT: this file is SERVER-ONLY (it reads BHASHINI_API_KEY from
+// process.env with no NEXT_PUBLIC_ prefix). Only import it from Server
+// Components, Route Handlers, or scripts — never from a "use client" file.
+// Client code should call POST /api/translate instead, which wraps this.
+
+import { Lang } from "@/lib/i18n/languages";
 
 const BHASHINI_PIPELINE_URL =
   "https://meity-auth.ulcacontrib.org/ulca/apis/v0/model/getModelsPipeline";
-const BHASHINI_COMPUTE_URL =
-  "https://dhruva-api.bhashini.gov.in/services/inference/pipeline";
 
-export type SupportedLang = "hi" | "ta" | "mr" | "bn" | "te" | "en";
+// Kept for any external code still importing this name.
+export type SupportedLang = Lang;
 
 interface TranslateOptions {
   text: string;
-  sourceLang: SupportedLang;
-  targetLang: SupportedLang;
+  sourceLang: Lang;
+  targetLang: Lang;
 }
 
-export async function translateText({
-  text,
+interface BatchTranslateOptions {
+  texts: string[];
+  sourceLang: Lang;
+  targetLang: Lang;
+}
+
+interface PipelineConfig {
+  serviceId: string;
+  callbackUrl: string;
+  inferenceApiKey: { name: string; value: string };
+}
+
+async function getPipelineConfig(
+  sourceLang: Lang,
+  targetLang: Lang,
+  userId: string,
+  apiKey: string
+): Promise<PipelineConfig> {
+  const pipelineRes = await fetch(BHASHINI_PIPELINE_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      userID: userId,
+      ulcaApiKey: apiKey,
+    },
+    body: JSON.stringify({
+      pipelineTasks: [
+        {
+          taskType: "translation",
+          config: {
+            language: { sourceLanguage: sourceLang, targetLanguage: targetLang },
+          },
+        },
+      ],
+      pipelineRequestConfig: { pipelineId: "64392f96daac500b55c543cd" },
+    }),
+  });
+
+  if (!pipelineRes.ok) throw new Error("pipeline config fetch failed");
+  const pipelineData = await pipelineRes.json();
+
+  const serviceId = pipelineData?.pipelineResponseConfig?.[0]?.config?.[0]?.serviceId;
+  const callbackUrl = pipelineData?.pipelineInferenceAPIEndPoint?.callbackUrl;
+  const inferenceApiKey = pipelineData?.pipelineInferenceAPIEndPoint?.inferenceApiKey;
+
+  if (!serviceId || !callbackUrl || !inferenceApiKey) {
+    throw new Error("incomplete pipeline config response");
+  }
+
+  return { serviceId, callbackUrl, inferenceApiKey };
+}
+
+/**
+ * Translate a batch of strings in ONE Bhashini API call (one pipeline-config
+ * fetch + one compute call, regardless of how many strings are passed).
+ * Always use this over calling translateText() in a loop — Bhashini's
+ * compute endpoint natively accepts an array of inputs, so batching is both
+ * faster and cheaper on API quota.
+ *
+ * Order is preserved: result[i] is the translation of texts[i]. On any
+ * failure (missing credentials, network error, malformed response), the
+ * original array is returned unchanged so callers never crash waiting on
+ * translation.
+ */
+export async function translateBatch({
+  texts,
   sourceLang,
   targetLang,
-}: TranslateOptions): Promise<string> {
-  if (sourceLang === targetLang) return text;
+}: BatchTranslateOptions): Promise<string[]> {
+  if (sourceLang === targetLang || texts.length === 0) return texts;
 
   const apiKey = process.env.BHASHINI_API_KEY;
   const userId = process.env.BHASHINI_USER_ID;
 
   if (!apiKey || !userId) {
-    // No credentials configured yet — safe no-op fallback for demo continuity.
     console.warn("[bhashini] credentials not set, returning original text");
-    return text;
+    return texts;
   }
 
   try {
-    // Step 1: fetch pipeline config for this language pair (should be cached in
-    // production — done live here for MVP simplicity).
-    const pipelineRes = await fetch(BHASHINI_PIPELINE_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        userID: userId,
-        ulcaApiKey: apiKey,
-      },
-      body: JSON.stringify({
-        pipelineTasks: [
-          {
-            taskType: "translation",
-            config: {
-              language: { sourceLanguage: sourceLang, targetLanguage: targetLang },
-            },
-          },
-        ],
-        pipelineRequestConfig: { pipelineId: "64392f96daac500b55c543cd" },
-      }),
-    });
+    const { serviceId, callbackUrl, inferenceApiKey } = await getPipelineConfig(
+      sourceLang,
+      targetLang,
+      userId,
+      apiKey
+    );
 
-    if (!pipelineRes.ok) throw new Error("pipeline config fetch failed");
-    const pipelineData = await pipelineRes.json();
-
-    const serviceId =
-      pipelineData?.pipelineResponseConfig?.[0]?.config?.[0]?.serviceId;
-    const callbackUrl = pipelineData?.pipelineInferenceAPIEndPoint?.callbackUrl;
-    const inferenceApiKey =
-      pipelineData?.pipelineInferenceAPIEndPoint?.inferenceApiKey;
-
-    if (!serviceId || !callbackUrl || !inferenceApiKey) {
-      throw new Error("incomplete pipeline config response");
-    }
-
-    // Step 2: actual translation call
     const computeRes = await fetch(callbackUrl, {
       method: "POST",
       headers: {
@@ -99,46 +141,29 @@ export async function translateText({
             },
           },
         ],
-        inputData: { input: [{ source: text }] },
+        inputData: { input: texts.map((source) => ({ source })) },
       }),
     });
 
     if (!computeRes.ok) throw new Error("translation compute call failed");
     const computeData = await computeRes.json();
 
-    return (
-      computeData?.pipelineResponse?.[0]?.output?.[0]?.target ?? text
-    );
+    const output = computeData?.pipelineResponse?.[0]?.output;
+    if (!Array.isArray(output) || output.length !== texts.length) {
+      throw new Error("translation output shape mismatch");
+    }
+
+    return output.map((o: any, i: number) => (typeof o?.target === "string" ? o.target : texts[i]));
   } catch (err) {
-    console.error("[bhashini] translation failed, falling back to original text", err);
-    return text;
+    console.error("[bhashini] batch translation failed, falling back to original text", err);
+    return texts;
   }
 }
 
-// Static UI label dictionary — used for the language toggle without needing a
-// live API call for every button/label in the app (fast, works offline).
-export const UI_LABELS: Record<SupportedLang, Record<string, string>> = {
-  en: {
-    dashboard: "Dashboard",
-    businessAdvisor: "Business Advisor",
-    financialPlanner: "Financial Planner",
-    schemesSupport: "Schemes & Support",
-    marketInsights: "Market Insights",
-    myReports: "My Reports",
-    savedIdeas: "Saved Ideas",
-    getBusinessAdvice: "Get Business Advice",
-    nextStep: "Next Step",
-  },
-  hi: {
-    dashboard: "डैशबोर्ड",
-    businessAdvisor: "व्यवसाय सलाहकार",
-    financialPlanner: "वित्तीय योजनाकार",
-    schemesSupport: "योजनाएं और सहायता",
-    marketInsights: "बाज़ार जानकारी",
-    myReports: "मेरी रिपोर्ट",
-    savedIdeas: "सहेजे गए विचार",
-    getBusinessAdvice: "व्यवसाय सलाह लें",
-    nextStep: "अगला चरण",
-  },
-  ta: {}, mr: {}, bn: {}, te: {}, // fill in as needed before demo
-};
+/** Translate a single string. Thin wrapper over translateBatch() — prefer
+ * translateBatch() directly when translating more than one string at once
+ * (e.g. every field of a report) so it's a single API call, not several. */
+export async function translateText({ text, sourceLang, targetLang }: TranslateOptions): Promise<string> {
+  const [result] = await translateBatch({ texts: [text], sourceLang, targetLang });
+  return result;
+}

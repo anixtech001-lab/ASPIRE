@@ -7,7 +7,7 @@ import { Bell, Search, UserCircle, Languages } from "lucide-react";
 import { useSidebar } from "@/lib/SidebarContext";
 import { useProfile } from "@/lib/ProfileContext";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
-import { LANGUAGES } from "@/lib/i18n/translations";
+import { LANGUAGES, Lang } from "@/lib/i18n/translations";
 
 const SEARCHABLE_PAGES = [
     { href: "/dashboard", label: "Dashboard" },
@@ -101,8 +101,8 @@ export default function TopBar() {
                     <Languages className="h-4 w-4 text-slate-400 shrink-0" />
                     <select
                         value={lang}
-                        onChange={(e) => setLang(e.target.value as "en" | "hi")}
-                        className="text-xs border border-slate-200 rounded-md px-2 py-1 text-slate-600 bg-white outline-none cursor-pointer"
+                        onChange={(e) => setLang(e.target.value as Lang)}
+                        className="text-xs border border-slate-200 rounded-md px-2 py-1 text-slate-600 bg-white outline-none cursor-pointer max-w-[110px]"
                         aria-label="Select language"
                     >
                         {LANGUAGES.map((l) => (

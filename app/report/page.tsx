@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useBusiness } from "@/lib/BusinessContext";
 import { QuickQuestionId } from "@/lib/ai";
 import { formatINR } from "@/lib/financialEngine";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { useTranslatedReport } from "@/lib/i18n/reportTranslation";
+import { useBatchTranslate } from "@/lib/i18n/useBatchTranslate";
 import { Download, ArrowLeft, Info, MapPin, Lightbulb, Users, DollarSign, FileDown, Loader2 } from "lucide-react";
 import {
   BarChart,
@@ -20,25 +23,34 @@ const BRAND_GREEN = "#2C5F2D";
 const BRAND_MOSS = "#97BC62";
 const SEVERITY_COLOR: Record<string, string> = { Low: "#10b981", Medium: "#f59e0b", High: "#ef4444" };
 
-const TABS = [
-  "Overview",
-  "Market Reach & Opportunity",
-  "SWOT & Risks",
-  "Pricing & Competitors",
-  "Financial Plan",
-];
-
 export default function ReportPage() {
   const { businessDetails, feasibilityReport, financialPlan } = useBusiness();
+  const { t, lang } = useLanguage();
   const [tab, setTab] = useState(0);
   const [pdfLoading, setPdfLoading] = useState(false);
 
-  if (!feasibilityReport || !financialPlan || !businessDetails) {
+  // Dynamic AI-generated content (executive summary, SWOT, risks, etc.) is
+  // translated live via Bhashini — see lib/i18n/reportTranslation.ts. The
+  // original English `feasibilityReport` from context is untouched and is
+  // what handleDownload/handleDownloadPDF below still use, so downloads stay
+  // in English for now regardless of the UI language (translating the PDF
+  // itself is a reasonable next step, not done in this pass).
+  const { report: displayReport, loading: translatingReport } = useTranslatedReport(feasibilityReport, lang);
+
+  const TABS = [
+    t("report.tabs.overview"),
+    t("report.tabs.marketOpportunity"),
+    t("report.tabs.swotRisks"),
+    t("report.tabs.pricingCompetitors"),
+    t("report.tabs.financialPlan"),
+  ];
+
+  if (!feasibilityReport || !financialPlan || !businessDetails || !displayReport) {
     return (
       <div className="p-8 max-w-3xl mx-auto text-center">
-        <p className="text-slate-500 mb-4">No report generated yet.</p>
+        <p className="text-slate-500 mb-4">{t("report.noReportYet")}</p>
         <Link href="/advisor" className="text-emerald-600 font-medium text-sm hover:underline">
-          Start a business analysis →
+          {t("report.startAnalysis")}
         </Link>
       </div>
     );
@@ -166,11 +178,11 @@ export default function ReportPage() {
     <div className="p-6 md:p-8 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-1">
         <Link href="/dashboard" className="flex items-center gap-1 text-sm text-slate-400 hover:text-slate-600">
-          <ArrowLeft className="h-4 w-4" /> Back
+          <ArrowLeft className="h-4 w-4" /> {t("report.back")}
         </Link>
         <div className="flex items-center gap-2">
           <button onClick={handleDownload} className="flex items-center gap-2 text-sm border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-50">
-            <Download className="h-4 w-4" /> Download (.txt)
+            <Download className="h-4 w-4" /> {t("report.downloadTxt")}
           </button>
           <button
             onClick={handleDownloadPDF}
@@ -178,53 +190,54 @@ export default function ReportPage() {
             className="flex items-center gap-2 text-sm bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-300 text-white rounded-lg px-3 py-1.5 transition-colors"
           >
             {pdfLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-            {pdfLoading ? "Generating…" : "Download Full Report (PDF)"}
+            {pdfLoading ? t("report.generatingPdf") : t("report.downloadPdf")}
           </button>
         </div>
       </div>
-      <h1 className="text-xl font-semibold mt-3">AI Business Advisory Report</h1>
+      <h1 className="text-xl font-semibold mt-3">{t("report.title")}</h1>
       <p className="text-sm text-slate-500 mb-3">
-        Generated for {businessDetails.location}, {businessDetails.state} · {businessDetails.businessCategory}
+        {t("report.generatedFor")} {businessDetails.location}, {businessDetails.state} · {businessDetails.businessCategory}
       </p>
       <div className="inline-flex items-center gap-1.5 text-xs text-slate-500 bg-slate-100 rounded-full px-3 py-1.5 mb-6">
         <Info className="h-3.5 w-3.5 shrink-0" />
-        AI-Estimated Analysis — based on regional demographic &amp; economic patterns, not live field survey data
+        {t("report.aiEstimatedBadge")}
+        {translatingReport && <Loader2 className="h-3 w-3 animate-spin ml-1" />}
       </div>
 
       <div className="flex gap-6 border-b border-slate-200 mb-6 overflow-x-auto">
-        {TABS.map((t, i) => (
+        {TABS.map((label, i) => (
           <button
-            key={t}
+            key={label}
             onClick={() => setTab(i)}
             className={`pb-3 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors ${tab === i ? "border-emerald-600 text-emerald-700 font-medium" : "border-transparent text-slate-500"
               }`}
           >
-            {t}
+            {label}
           </button>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          {tab === 0 && <OverviewTab report={feasibilityReport} />}
-          {tab === 1 && <MarketOpportunityTab report={feasibilityReport} />}
-          {tab === 2 && <SwotRisksTab report={feasibilityReport} />}
-          {tab === 3 && <PricingCompetitorsTab report={feasibilityReport} />}
-          {tab === 4 && <FinancialTab plan={financialPlan} />}
+          {tab === 0 && <OverviewTab report={displayReport} t={t} />}
+          {tab === 1 && <MarketOpportunityTab report={displayReport} t={t} />}
+          {tab === 2 && <SwotRisksTab report={displayReport} t={t} />}
+          {tab === 3 && <PricingCompetitorsTab report={displayReport} t={t} />}
+          {tab === 4 && <FinancialTab plan={financialPlan} t={t} />}
         </div>
 
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-slate-200 p-5 h-fit">
-            <h3 className="font-semibold text-sm mb-4">At a Glance</h3>
-            <GlanceRow label="Business Type" value={businessDetails.businessCategory} />
-            <GlanceRow label="Location" value={`${businessDetails.location}, ${businessDetails.state}`} />
-            <GlanceRow label="Project Cost" value={formatINR(financialPlan.details.projectCost)} />
-            <GlanceRow label="Indicative Financing" value={formatINR(financialPlan.details.loanAmount)} />
-            <GlanceRow label="Scheme" value={financialPlan.details.scheme?.name ?? "Exceeds standard limits"} />
-            <GlanceRow label="Risk Level" value={feasibilityReport.riskLevel} last />
+            <h3 className="font-semibold text-sm mb-4">{t("report.atAGlance")}</h3>
+            <GlanceRow label={t("report.businessType")} value={businessDetails.businessCategory} />
+            <GlanceRow label={t("report.location")} value={`${businessDetails.location}, ${businessDetails.state}`} />
+            <GlanceRow label={t("report.projectCost")} value={formatINR(financialPlan.details.projectCost)} />
+            <GlanceRow label={t("report.indicativeFinancing")} value={formatINR(financialPlan.details.loanAmount)} />
+            <GlanceRow label={t("report.scheme")} value={financialPlan.details.scheme?.name ?? t("report.exceedsLimits")} />
+            <GlanceRow label={t("report.riskLevel")} value={displayReport.riskLevel} last />
           </div>
 
-          <QuickAssistant businessDetails={businessDetails} />
+          <QuickAssistant businessDetails={businessDetails} t={t} lang={lang} />
         </div>
       </div>
     </div>
@@ -233,22 +246,27 @@ export default function ReportPage() {
 
 type Report = NonNullable<ReturnType<typeof useBusiness>["feasibilityReport"]>;
 type Plan = NonNullable<ReturnType<typeof useBusiness>["financialPlan"]>;
+type T = (key: string) => string;
 
-function OverviewTab({ report }: { report: Report }) {
+function severityLabel(t: T, severity: string): string {
+  return t(`report.severity.${severity}`) || severity;
+}
+
+function OverviewTab({ report, t }: { report: Report; t: T }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6">
-      <h3 className="font-semibold mb-3">Executive Summary</h3>
+      <h3 className="font-semibold mb-3">{t("report.executiveSummary")}</h3>
       <p className="text-sm text-slate-600 leading-relaxed mb-6">{report.executiveSummary}</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <MiniStat label="Feasibility Score" value={`${report.feasibilityScore}/100`} />
-        <MiniStat label="Market Demand" value={report.marketDemand} />
-        <MiniStat label="Risk Level" value={report.riskLevel} />
+        <MiniStat label={t("report.feasibilityScore")} value={`${report.feasibilityScore}/100`} />
+        <MiniStat label={t("report.marketDemand")} value={severityLabel(t, report.marketDemand)} />
+        <MiniStat label={t("report.riskLevel")} value={report.riskLevel} />
       </div>
     </div>
   );
 }
 
-function MarketOpportunityTab({ report }: { report: Report }) {
+function MarketOpportunityTab({ report, t }: { report: Report; t: T }) {
   const reachData = [
     { name: "Within 5km", value: report.marketReach.population5km },
     { name: "Within 10km", value: report.marketReach.population10km },
@@ -258,14 +276,14 @@ function MarketOpportunityTab({ report }: { report: Report }) {
     <div className="space-y-4">
       <div className="bg-white rounded-2xl border border-slate-200 p-6">
         <h3 className="font-semibold mb-1 flex items-center gap-2">
-          <MapPin className="h-4 w-4 text-emerald-600" /> Market Reach
+          <MapPin className="h-4 w-4 text-emerald-600" /> {t("report.marketReach")}
         </h3>
         <p className="text-sm text-slate-600 mb-4">{report.marketReach.summary}</p>
 
         {(report.marketReach.population5km > 0 || report.marketReach.population10km > 0) && (
           <div className="mb-4">
             <div className="mb-1.5">
-              <ModelEstimateBadge />
+              <ModelEstimateBadge t={t} />
             </div>
             <div className="h-40">
               <ResponsiveContainer width="100%" height="100%">
@@ -294,7 +312,7 @@ function MarketOpportunityTab({ report }: { report: Report }) {
 
       <div className="bg-white rounded-2xl border border-slate-200 p-6">
         <h3 className="font-semibold mb-3 flex items-center gap-2">
-          <Lightbulb className="h-4 w-4 text-emerald-600" /> Opportunity Analysis
+          <Lightbulb className="h-4 w-4 text-emerald-600" /> {t("report.opportunityAnalysis")}
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {report.opportunityAnalysis.map((o, i) => (
@@ -309,21 +327,21 @@ function MarketOpportunityTab({ report }: { report: Report }) {
   );
 }
 
-function SwotRisksTab({ report }: { report: Report }) {
+function SwotRisksTab({ report, t }: { report: Report; t: T }) {
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-2xl border border-slate-200 p-6">
-        <h3 className="font-semibold mb-3">SWOT Analysis</h3>
+        <h3 className="font-semibold mb-3">{t("report.swotAnalysis")}</h3>
         <div className="grid grid-cols-2 gap-0.5 rounded-xl overflow-hidden border border-slate-200">
-          <SwotQuadrant title="Strengths" items={report.swot.strengths} bg="bg-emerald-50" text="text-emerald-800" chip="bg-emerald-100" />
-          <SwotQuadrant title="Weaknesses" items={report.swot.weaknesses} bg="bg-amber-50" text="text-amber-800" chip="bg-amber-100" />
-          <SwotQuadrant title="Opportunities" items={report.swot.opportunities} bg="bg-blue-50" text="text-blue-800" chip="bg-blue-100" />
-          <SwotQuadrant title="Threats" items={report.swot.threats} bg="bg-red-50" text="text-red-800" chip="bg-red-100" />
+          <SwotQuadrant title={t("report.strengths")} items={report.swot.strengths} bg="bg-emerald-50" text="text-emerald-800" chip="bg-emerald-100" />
+          <SwotQuadrant title={t("report.weaknesses")} items={report.swot.weaknesses} bg="bg-amber-50" text="text-amber-800" chip="bg-amber-100" />
+          <SwotQuadrant title={t("report.opportunities")} items={report.swot.opportunities} bg="bg-blue-50" text="text-blue-800" chip="bg-blue-100" />
+          <SwotQuadrant title={t("report.threats")} items={report.swot.threats} bg="bg-red-50" text="text-red-800" chip="bg-red-100" />
         </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 p-6">
-        <h3 className="font-semibold mb-2">Threats Identification</h3>
+        <h3 className="font-semibold mb-2">{t("report.threatsIdentification")}</h3>
         <p className="text-sm text-slate-600 mb-4">{report.threatsIdentification.summary}</p>
         <div className="space-y-3">
           {report.threatsIdentification.risks.map((r, i) => (
@@ -331,7 +349,7 @@ function SwotRisksTab({ report }: { report: Report }) {
               <div className="flex items-center justify-between text-xs mb-1">
                 <span className="font-medium text-slate-700">{r.name}</span>
                 <span className="font-medium" style={{ color: SEVERITY_COLOR[r.severity] }}>
-                  {r.severity}
+                  {severityLabel(t, r.severity)}
                 </span>
               </div>
               <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -351,7 +369,7 @@ function SwotRisksTab({ report }: { report: Report }) {
   );
 }
 
-function PricingCompetitorsTab({ report }: { report: Report }) {
+function PricingCompetitorsTab({ report, t }: { report: Report; t: T }) {
   const priceData = [
     { name: "Suggested", value: report.productMarketValue.suggestedPrice },
     { name: "Regional Avg", value: report.productMarketValue.regionalAveragePrice },
@@ -361,35 +379,37 @@ function PricingCompetitorsTab({ report }: { report: Report }) {
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-2xl border border-slate-200 p-6">
-        <h3 className="font-semibold mb-2">Competitor Mapping</h3>
+        <h3 className="font-semibold mb-2">{t("report.competitorMapping")}</h3>
         <p className="text-sm text-slate-600 mb-4">{report.competitorMapping.summary}</p>
         <div className="flex rounded-lg overflow-hidden h-8 text-[11px] font-medium">
-          {["Low", "Medium", "High"].map((level, i) => (
+          {(["Low", "Medium", "High"] as const).map((level, i) => (
             <div
               key={level}
               className={`flex-1 flex items-center justify-center ${i === satIndex ? "text-white" : "text-slate-400 bg-slate-100"
                 }`}
               style={i === satIndex ? { backgroundColor: SEVERITY_COLOR[level] } : {}}
             >
-              {level}
+              {severityLabel(t, level)}
             </div>
           ))}
         </div>
         <div className="flex items-center justify-between mt-2">
-          <p className="text-xs text-slate-400">Market Saturation Level: {report.competitorMapping.saturationLevel}</p>
-          <ModelEstimateBadge />
+          <p className="text-xs text-slate-400">
+            {t("report.marketSaturationLevel")}: {severityLabel(t, report.competitorMapping.saturationLevel)}
+          </p>
+          <ModelEstimateBadge t={t} />
         </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 p-6">
         <h3 className="font-semibold mb-2 flex items-center gap-2">
-          <DollarSign className="h-4 w-4 text-emerald-600" /> Product Market Value &amp; Pricing
+          <DollarSign className="h-4 w-4 text-emerald-600" /> {t("report.productMarketValue")}
         </h3>
         <p className="text-sm text-slate-600 mb-4">{report.productMarketValue.summary}</p>
         {report.productMarketValue.suggestedPrice > 0 && (
           <div>
             <div className="mb-1.5">
-              <ModelEstimateBadge />
+              <ModelEstimateBadge t={t} />
             </div>
             <div className="h-32">
               <ResponsiveContainer width="100%" height="100%">
@@ -411,26 +431,25 @@ function PricingCompetitorsTab({ report }: { report: Report }) {
   );
 }
 
-function FinancialTab({ plan }: { plan: Plan }) {
+function FinancialTab({ plan, t }: { plan: Plan; t: T }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6">
-      <h3 className="font-semibold mb-4">Financial Structuring Plan</h3>
+      <h3 className="font-semibold mb-4">{t("report.financialPlanTitle")}</h3>
       {plan.details.exceedsLimits ? (
         <p className="text-sm text-amber-600">
-          Project cost of {formatINR(plan.details.projectCost)} exceeds the ₹50 lakh Term Loan
-          Scheme ceiling — this needs manual review by a Channel Partner.
+          {t("report.projectCost")} {formatINR(plan.details.projectCost)} {t("report.exceedsLimitsMsg")}
         </p>
       ) : (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-5">
-            <MiniStat label="Project Cost" value={formatINR(plan.details.projectCost)} />
-            <MiniStat label="Indicative Financing" value={formatINR(plan.details.loanAmount)} />
-            <MiniStat label="Scheme" value={plan.details.scheme!.name} />
-            <MiniStat label="Interest Rate" value={`${plan.details.scheme!.interestRate}% p.a.`} />
-            <MiniStat label="Tenure" value={`${plan.details.scheme!.tenureYears} years`} />
-            <MiniStat label="Moratorium" value={`${plan.details.scheme!.moratoriumMonths} months`} />
+            <MiniStat label={t("report.projectCost")} value={formatINR(plan.details.projectCost)} />
+            <MiniStat label={t("report.indicativeFinancing")} value={formatINR(plan.details.loanAmount)} />
+            <MiniStat label={t("report.scheme")} value={plan.details.scheme!.name} />
+            <MiniStat label={t("report.interestRate")} value={`${plan.details.scheme!.interestRate}% p.a.`} />
+            <MiniStat label={t("report.tenure")} value={`${plan.details.scheme!.tenureYears} years`} />
+            <MiniStat label={t("report.moratorium")} value={`${plan.details.scheme!.moratoriumMonths} months`} />
           </div>
-          {plan.emiSchedule && <MiniStat label="Quarterly EMI" value={formatINR(plan.emiSchedule.quarterlyEMI)} />}
+          {plan.emiSchedule && <MiniStat label={t("report.quarterlyEmi")} value={formatINR(plan.emiSchedule.quarterlyEMI)} />}
         </>
       )}
     </div>
@@ -455,10 +474,10 @@ function MiniStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ModelEstimateBadge() {
+function ModelEstimateBadge({ t }: { t: T }) {
   return (
     <span className="inline-flex items-center gap-1 text-[10px] text-amber-700 bg-amber-50 rounded-full px-2 py-0.5">
-      ⚠ Model Estimate — Not Verified
+      ⚠ {t("report.modelEstimate")}
     </span>
   );
 }
@@ -478,7 +497,15 @@ function SwotQuadrant({ title, items, bg, text, chip }: { title: string; items: 
   );
 }
 
-function QuickAssistant({ businessDetails }: { businessDetails: NonNullable<ReturnType<typeof useBusiness>["businessDetails"]> }) {
+function QuickAssistant({
+  businessDetails,
+  t,
+  lang,
+}: {
+  businessDetails: NonNullable<ReturnType<typeof useBusiness>["businessDetails"]>;
+  t: T;
+  lang: import("@/lib/i18n/languages").Lang;
+}) {
   const [activeQuestion, setActiveQuestion] = useState<QuickQuestionId | null>(null);
   const [answers, setAnswers] = useState<Partial<Record<QuickQuestionId, string>>>({});
   const [loadingId, setLoadingId] = useState<QuickQuestionId | null>(null);
@@ -489,6 +516,15 @@ function QuickAssistant({ businessDetails }: { businessDetails: NonNullable<Retu
     { id: "emi_default", label: "⚠️ EMI na de paun toh kya hoga?" },
     { id: "licenses", label: "📋 Kaun se license chahiye?" },
   ];
+
+  const activeAnswer = activeQuestion ? answers[activeQuestion] : undefined;
+  // Quick-advice answers are also Groq-generated free text, in English —
+  // translated the same way as the report, just a single-string batch.
+  const answerMap = useMemo(
+    () => (activeAnswer ? { answer: activeAnswer } : null),
+    [activeAnswer]
+  );
+  const { translated: translatedAnswer, loading: translatingAnswer } = useBatchTranslate(answerMap, lang);
 
   const handleClick = async (id: QuickQuestionId) => {
     setActiveQuestion(id);
@@ -519,8 +555,8 @@ function QuickAssistant({ businessDetails }: { businessDetails: NonNullable<Retu
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-5">
-      <h3 className="font-semibold text-sm mb-1">Quick Questions</h3>
-      <p className="text-xs text-slate-400 mb-4">Common questions, answered for your business</p>
+      <h3 className="font-semibold text-sm mb-1">{t("report.quickQuestions")}</h3>
+      <p className="text-xs text-slate-400 mb-4">{t("report.quickQuestionsDesc")}</p>
       <div className="space-y-2">
         {buttons.map((b) => (
           <button
@@ -533,15 +569,17 @@ function QuickAssistant({ businessDetails }: { businessDetails: NonNullable<Retu
           </button>
         ))}
       </div>
-      {loadingId && (
+      {(loadingId || translatingAnswer) && (
         <p className="text-xs text-slate-400 mt-3 flex items-center gap-1.5">
           <span className="h-3 w-3 border-2 border-slate-300 border-t-emerald-500 rounded-full animate-spin" />
-          Thinking…
+          {t("report.thinking")}
         </p>
       )}
       {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
-      {activeQuestion && answers[activeQuestion] && !loadingId && (
-        <div className="mt-3 text-xs text-slate-600 leading-relaxed bg-slate-50 rounded-lg p-3">{answers[activeQuestion]}</div>
+      {activeQuestion && activeAnswer && !loadingId && !translatingAnswer && (
+        <div className="mt-3 text-xs text-slate-600 leading-relaxed bg-slate-50 rounded-lg p-3">
+          {translatedAnswer?.answer ?? activeAnswer}
+        </div>
       )}
     </div>
   );
