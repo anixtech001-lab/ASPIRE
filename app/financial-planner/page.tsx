@@ -29,6 +29,16 @@ const DEFAULT_EXPENSES: LineItem[] = [
 
 const DEFAULT_REVENUE: LineItem[] = [{ id: "1", label: "Sales Revenue", amount: 0 }];
 
+// Investment/expense/revenue amounts are real-world costs — negative numbers
+// aren't meaningful here (you can't have "-₹53 transportation cost") and
+// previously produced nonsense results downstream, e.g. a negative expense
+// inflating profit, or a negative investment turning break-even into
+// "-1 months". Every amount is clamped to zero at the point of entry so bad
+// input can never reach the P&L math.
+function clampToNonNegative(value: number): number {
+  return Number.isFinite(value) ? Math.max(0, value) : 0;
+}
+
 export default function FinancialPlannerPage() {
   const { businessDetails, hydrated } = useBusiness();
 
@@ -52,7 +62,7 @@ export default function FinancialPlannerPage() {
     setMarginCapitalInput(value);
   };
 
-  const marginCapital = Number(marginCapitalInput) || 0;
+  const marginCapital = clampToNonNegative(Number(marginCapitalInput));
 
   const plan = useMemo(
     () => (marginCapital > 0 ? calculateFullFinancialPlan(marginCapital) : null),
@@ -91,6 +101,7 @@ export default function FinancialPlannerPage() {
           </label>
           <input
             type="number"
+            min={0}
             className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
             placeholder="e.g. 100000"
             value={marginCapitalInput}
@@ -232,7 +243,7 @@ function LineItemCard({
   totalLabel: string;
 }) {
   const updateAmount = (id: string, amount: number) =>
-    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, amount } : it)));
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, amount: clampToNonNegative(amount) } : it)));
 
   const updateLabel = (id: string, label: string) =>
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, label } : it)));
@@ -255,6 +266,7 @@ function LineItemCard({
             />
             <input
               type="number"
+              min={0}
               className="w-24 text-sm border border-slate-200 rounded-md px-2 py-1.5 outline-none focus:border-emerald-500"
               value={item.amount}
               onChange={(e) => updateAmount(item.id, Number(e.target.value))}

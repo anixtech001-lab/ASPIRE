@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans), var(--font-devanagari), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
 }
 
 /* --- Google Translate: our real widget is now fully hidden by design

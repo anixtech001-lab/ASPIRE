@@ -45,7 +45,9 @@ export default function WelcomeIntro() {
 
   if (stage === "hidden" || stage === "done") return null;
 
-  const iconIn = stage !== "hidden";
+  // Past the guard above, `stage` can only be "icon" | "arcs" | "wordmark" | "exit"
+  // — meaning the icon is always visible for all of them, so there's no
+  // separate "is the icon in" check needed.
   const arcsIn = stage === "arcs" || stage === "wordmark" || stage === "exit";
   const wordmarkIn = stage === "wordmark" || stage === "exit";
   const exiting = stage === "exit";
@@ -108,10 +110,7 @@ export default function WelcomeIntro() {
 
         <div
           className="flex h-20 w-20 items-center justify-center rounded-2xl bg-emerald-100 shadow-sm"
-          style={{
-            opacity: iconIn ? 1 : 0,
-            animation: iconIn ? "aspireIconIn 550ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards" : undefined,
-          }}
+          style={{ animation: "aspireIconIn 550ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards" }}
         >
           <Sprout className="h-10 w-10 text-emerald-700" />
         </div>
