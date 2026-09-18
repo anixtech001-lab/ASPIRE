@@ -9,6 +9,7 @@ import {
     Landmark,
     TrendingUp,
     FileText,
+    Users,
     UserCircle,
     HelpCircle,
 } from "lucide-react";
@@ -19,6 +20,7 @@ const ITEMS = [
     { href: "/financial-planner", label: "Finance", icon: Calculator },
     { href: "/schemes", label: "Schemes", icon: Landmark },
     { href: "/market-insights", label: "Market", icon: TrendingUp },
+    { href: "/community", label: "Community", icon: Users },
     { href: "/reports", label: "Reports", icon: FileText },
     { href: "/profile", label: "Profile", icon: UserCircle },
     { href: "/help", label: "Help", icon: HelpCircle },

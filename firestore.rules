@@ -1,0 +1,74 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /communityProblems/{problemId} {
+      // Anyone can read the community board — no sign-in needed to browse.
+      allow read: if true;
+
+      allow create: if request.auth != null
+        && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 150
+        && request.resource.data.description is string
+        && request.resource.data.description.size() > 0
+        && request.resource.data.description.size() <= 2000
+        && request.resource.data.category is string
+        && request.resource.data.solutionCount == 0
+        && request.resource.data.status == "open";
+
+      // Only two narrow update paths are allowed — anything else is denied:
+      // (1) any signed-in visitor bumping solutionCount by exactly 1 when
+      //     they post a reply (see lib/community.ts's addSolution)
+      // (2) only the original poster flipping status "open" -> "solved"
+      allow update: if request.auth != null && (
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['solutionCount']) &&
+          request.resource.data.solutionCount == resource.data.solutionCount + 1
+        ) ||
+        (
+          resource.data.authorUid == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
+          resource.data.status == "open" &&
+          request.resource.data.status == "solved"
+        )
+      );
+
+      allow delete: if false; // not exposed in the UI yet
+
+      match /solutions/{solutionId} {
+        allow read: if true;
+
+        allow create: if request.auth != null
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 2000
+          && request.resource.data.upvotedBy.size() == 0;
+
+        // Upvote toggle only: the reply text and author can never change
+        // here, and upvotedBy may only gain/lose the CALLER's own uid — no
+        // upvoting on someone else's behalf, no editing another person's
+        // reply.
+        allow update: if request.auth != null
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotedBy'])
+          && request.resource.data.text == resource.data.text
+          && (
+            (
+              request.resource.data.upvotedBy.size() == resource.data.upvotedBy.size() + 1 &&
+              request.resource.data.upvotedBy.hasAll(resource.data.upvotedBy) &&
+              request.resource.data.upvotedBy.hasAny([request.auth.uid])
+            ) ||
+            (
+              request.resource.data.upvotedBy.size() == resource.data.upvotedBy.size() - 1 &&
+              resource.data.upvotedBy.hasAll(request.resource.data.upvotedBy) &&
+              !request.resource.data.upvotedBy.hasAny([request.auth.uid])
+            )
+          );
+
+        allow delete: if false;
+      }
+    }
+  }
+}

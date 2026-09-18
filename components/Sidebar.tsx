@@ -11,6 +11,7 @@ import {
   Landmark,
   TrendingUp,
   FileText,
+  Users,
   UserCircle,
   HelpCircle,
   Sprout,
@@ -32,6 +33,9 @@ export default function Sidebar() {
     { href: "/schemes", label: t("nav.schemes"), icon: Landmark },
     { href: "/market-insights", label: t("nav.marketInsights"), icon: TrendingUp },
     { href: "/reports", label: t("nav.reports"), icon: FileText },
+    // Not yet in translations.ts — shows as plain English for every
+    // language until a "nav.community" key is added there.
+    { href: "/community", label: "Community", icon: Users },
   ];
 
   const FOOTER_ITEMS = [
