@@ -15,6 +15,10 @@ import {
 } from "@/lib/community";
 import { ArrowLeft, ThumbsUp, CheckCircle2, Loader2, Send } from "lucide-react";
 
+// Same reason as app/community/page.tsx — this page depends on Firebase at
+// load time, so it can't be statically pre-rendered at build time.
+export const dynamic = "force-dynamic";
+
 export default function ProblemDetailPage({ params }: { params: { id: string } }) {
     const { id } = params;
     const [problem, setProblem] = useState<CommunityProblem | null | undefined>(undefined);

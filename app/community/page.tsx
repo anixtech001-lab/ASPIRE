@@ -10,6 +10,12 @@ import {
 } from "@/lib/community";
 import { MessageCircle, CheckCircle2, Plus, X, Loader2, Users } from "lucide-react";
 
+// This page talks to Firebase (a browser-only client SDK) the moment it
+// loads, so it can't be pre-rendered at build time — force it to render
+// fresh in the browser instead of Next trying to statically export it
+// (which fails when Firebase env vars aren't present during the build).
+export const dynamic = "force-dynamic";
+
 // Kept in sync with app/advisor/page.tsx's BUSINESS_CATEGORIES by hand —
 // if that list changes, update this one too.
 const CATEGORIES = ["Dairy", "Retail", "Textiles", "Food Processing", "Handicrafts", "Services", "Other"];
